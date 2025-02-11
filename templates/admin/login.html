@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Login - Middts Client{% endblock %}
+
+{% block extrastyle %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            height: 100vh;
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #343a40;
+            padding-top: 20px;
+        }
+        .sidebar a {
+            padding: 10px 20px;
+            text-decoration: none;
+            font-size: 18px;
+            color: white;
+            display: block;
+        }
+        .sidebar a:hover {
+            background-color: #007bff;
+        }
+        .content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .text-center {
+            text-align: center;
+        }
+    </style>
+{% endblock %}
+
+{% block nav-global %}
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h4 class="text-center text-white">Middts Client</h4>
+        <a href="/">🏠 Home</a>
+        <a href="/admin/">⚙️ Administração</a>
+        <a href="/api/docs">📄 API Documentação</a>
+        <a href="/systems/">🗂️ Gerenciar Systems</a>
+        <a href="/dtdlmodels/">📑 Modelos DTDL</a>
+        <a href="/instances/">🧩 Gêmeos Digitais</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="login-container">
+        <h2 class="text-center">Middts Client</h2>
+        <p class="text-center">Faça login para acessar a administração</p>
+        <form action="{{ app_path }}" method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="id_username" class="form-label">Usuário</label>
+                <input type="text" name="username" autofocus required id="id_username" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label for="id_password" class="form-label">Senha</label>
+                <input type="password" name="password" required id="id_password" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+        <p class="text-center mt-3"><a href="/">← Voltar para o site</a></p>
+    </div>
+</div>
+{% endblock %}

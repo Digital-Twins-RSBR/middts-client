@@ -1,0 +1,9 @@
+<div class="col-md-4">
+    <div class="card border shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ system.name }}</h5>
+            <p class="card-text">{{ system.description|default:"Sem descrição" }}</p>
+            <a href="/systems/{{ system.id }}/twins/" class="btn btn-primary w-100">Visualizar Gêmeos Digitais</a>
+        </div>
+    </div>
+</div>

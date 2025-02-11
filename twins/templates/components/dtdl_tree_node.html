@@ -1,0 +1,18 @@
+<li>
+    <div class="tree-node d-flex align-items-center">
+        {% if node.children %}
+            <button id="toggle-btn-{{ node.model.id }}" class="toggle-btn me-2" onclick="toggleChildren('{{ node.model.id }}')">
+                [-]
+            </button>
+        {% endif %}
+        <span class="flex-grow-1">{{ node.model.name }}</span>
+    </div>
+    
+    {% if node.children %}
+        <ul id="children-{{ node.model.id }}">
+            {% for child in node.children %}
+                {% include "components/dtdl_tree_node.html" with node=child %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>

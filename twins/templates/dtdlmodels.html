@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Modelos DTDL{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Modelos DTDL Cadastrados</h2>
+
+    <!-- Filtro Dropdown -->
+    <form method="GET" class="mb-4">
+        <label for="system-filter" class="form-label"><strong>Filtrar por Sistema:</strong></label>
+        <select name="system_id" id="system-filter" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos os Sistemas</option>
+            {% for system in systems %}
+                <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
+                    {{ system.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <!-- Árvore Hierárquica -->
+    <div class="tree-container">
+        <ul class="tree">
+            {% for node in hierarchy %}
+                {% include "components/dtdl_tree_node.html" with node=node %}
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<style>
+    .tree ul {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+
+    .tree li {
+        margin: 5px 0;
+        position: relative;
+    }
+
+    .tree-node {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        margin-right: 10px;
+        color: black;
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+
+<script>
+    function toggleChildren(id) {
+        let children = document.getElementById("children-" + id);
+        let toggleButton = document.getElementById("toggle-btn-" + id);
+
+        if (children) {
+            if (children.classList.contains("hidden")) {
+                children.classList.remove("hidden");
+                toggleButton.innerHTML = "[-]";
+            } else {
+                children.classList.add("hidden");
+                toggleButton.innerHTML = "[+]";
+            }
+        }
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,86 @@
+<div id="sidebar" class="sidebar">
+    <button id="toggle-sidebar" class="toggle-btn">☰</button>
+    <h4 class="text-center text-white">Middts Client</h4>
+    <a href="/">🏠 Home</a>
+    <a href="/admin/">⚙️ Administração</a>
+    <a href="/api/docs">📄 API Documentação</a>
+    <a href="/systems/">🗂️ Gerenciar Systems</a>
+    <a href="/dtdlmodels/">📑 Modelos DTDL</a>
+    <a href="/instances/">🧩 Gêmeos Digitais</a>
+</div>
+
+<style>
+    /* Sidebar */
+    .sidebar {
+        height: 100vh;
+        width: 250px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: #343a40;
+        padding-top: 20px;
+        transition: width 0.3s;
+    }
+
+    .sidebar a {
+        padding: 10px 20px;
+        text-decoration: none;
+        font-size: 18px;
+        color: white;
+        display: block;
+    }
+
+    .sidebar a:hover {
+        background-color: #007bff;
+    }
+
+    /* Botão Collapse */
+    .toggle-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: transparent;
+        border: none;
+        font-size: 24px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Sidebar Colapsado */
+    .sidebar.collapsed {
+        width: 60px;
+    }
+
+    .sidebar.collapsed a {
+        text-align: center;
+        padding: 10px;
+        font-size: 22px;
+    }
+
+    .sidebar.collapsed h4 {
+        display: none;
+    }
+
+    /* Ajuste de Margem no Conteúdo */
+    .content {
+        margin-left: 250px;
+        padding: 20px;
+        transition: margin-left 0.3s;
+    }
+
+    .collapsed + .content {
+        margin-left: 60px;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const sidebar = document.getElementById("sidebar");
+        const toggleButton = document.getElementById("toggle-sidebar");
+
+        toggleButton.addEventListener("click", function() {
+            sidebar.classList.toggle("collapsed");
+            document.querySelector(".content").classList.toggle("collapsed");
+        });
+    });
+</script>

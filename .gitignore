@@ -1,0 +1,14 @@
+*˜
+*.pyc
+.svn
+.DS_Store
+.venv
+.DS_Store?
+._*
+*.un~
+settings.py
+.Spotlight-V100
+.Trashes
+.settings/*
+__pycache__/
+.sqllite3

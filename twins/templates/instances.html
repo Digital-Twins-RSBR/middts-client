@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Gêmeos Digitais{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Gêmeos Digitais</h2>
+
+    <!-- Filtro por Sistema -->
+    <form method="GET" class="mb-4 d-flex align-items-center">
+        <label for="system-filter" class="form-label me-2"><strong>Filtrar por Sistema:</strong></label>
+        <select name="system_id" id="system-filter" class="form-select me-3" onchange="this.form.submit()">
+            <option value="">Todos os Sistemas</option>
+            {% for system in systems %}
+                <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
+                    {{ system.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <!-- Container do Grafo -->
+    <div id="graph-container"></div>
+</div>
+
+<div id="info-panel" class="hidden">
+    <h3>Detalhes do Gêmeo Digital</h3>
+    <p><strong>Nome:</strong> <span id="dt-name"></span></p>
+    <p><strong>Modelo:</strong> <span id="dt-model"></span></p>
+    <h4>Propriedades</h4>
+    <div id="dt-properties"></div>
+    <button class="btn btn-danger" onclick="closePanel()">Fechar</button>
+</div>
+
+<style>
+    #info-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 100vh;
+        background: white;
+        box-shadow: -2px 0px 5px rgba(0,0,0,0.2);
+        padding: 20px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+<script>
+    function showPanel(data) {
+        document.getElementById("dt-name").innerText = data.name;
+        document.getElementById("dt-model").innerText = data.model;
+
+        let propertiesHTML = "";
+        data.properties.forEach(prop => {
+            propertiesHTML += `<p><strong>${prop.name}:</strong> <input type="text" value="${prop.value}" onchange="updateProperty('${data.id}', '${prop.name}', this.value)"></p>`;
+        });
+
+        document.getElementById("dt-properties").innerHTML = propertiesHTML;
+        document.getElementById("info-panel").style.display = "block";
+    }
+
+    function closePanel() {
+        document.getElementById("info-panel").style.display = "none";
+    }
+
+    function updateProperty(id, property, value) {
+        fetch(`/instances/${id}/update_property/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ property: property, value: value })
+        }).then(response => response.json())
+          .then(data => console.log("Propriedade atualizada:", data));
+    }
+</script>
+<!-- D3.js para a visualização do grafo -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let width = 800, height = 600;
+        let svg = d3.select("#graph-container").append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
+
+        let instances = [
+            {% for instance in instances %}
+                { id: "{{ instance.id }}", name: "{{ instance.name }}", model: "{{ instance.model.name }}", properties: [
+                    {% for prop in instance.properties.all %}
+                        { name: "{{ prop.name }}", value: "{{ prop.value }}" },
+                    {% endfor %}
+                ] },
+            {% endfor %}
+        ];
+
+        let relationships = [
+            {% for relation in relationships %}
+                { source: "{{ relation.source_instance.id }}", target: "{{ relation.target_instance.id }}", name: "{{ relation.relationship.name }}" },
+            {% endfor %}
+        ];
+
+        let simulation = d3.forceSimulation(instances)
+            .force("link", d3.forceLink(relationships).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        let link = svg.selectAll("line")
+            .data(relationships)
+            .enter().append("line")
+            .style("stroke", "#999")
+            .style("stroke-width", "2px");
+
+        let node = svg.selectAll("circle")
+            .data(instances)
+            .enter().append("circle")
+            .attr("r", 15)
+            .attr("fill", "#007bff")
+            .call(d3.drag()
+                .on("start", dragStarted)
+                .on("drag", dragged)
+                .on("end", dragEnded));
+
+        let labels = svg.selectAll("text")
+            .data(instances)
+            .enter().append("text")
+            .attr("dx", 18)
+            .attr("dy", ".35em")
+            .style("font-size", "14px")
+            .style("fill", "#333")
+            .text(d => d.name);
+
+        simulation.on("tick", function () {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            labels
+                .attr("x", d => d.x + 5)
+                .attr("y", d => d.y + 5);
+        });
+
+        function dragStarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragEnded(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+    });
+</script>
+
+{% endblock %}
