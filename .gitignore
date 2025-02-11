@@ -11,4 +11,4 @@ settings.py
 .Trashes
 .settings/*
 __pycache__/
-.sqllite3
+*.sqllite3
