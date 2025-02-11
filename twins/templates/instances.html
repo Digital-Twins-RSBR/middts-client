@@ -12,78 +12,82 @@
         <select name="system_id" id="system-filter" class="form-select me-3" onchange="this.form.submit()">
             <option value="">Todos os Sistemas</option>
             {% for system in systems %}
-                <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
+                <option value="{{ system.id }}" {% if selected_system and selected_system.id == system.id %}selected{% endif %}>
                     {{ system.name }}
                 </option>
             {% endfor %}
         </select>
     </form>
-
+</div>
+<div class="container-fluid mt-5 d-flex">
+    
     <!-- Container do Grafo -->
-    <div id="graph-container"></div>
+    <div id="graph-container-wrapper">
+        <div id="graph-container">
+            <svg id="graph-svg"></svg>
+        </div>
+    </div>
+
+    <!-- Painel Lateral de Informações -->
+    <div id="info-panel">
+        <h3 id="panel-title">Informações</h3>
+        <p id="panel-content">
+            {% if selected_system %}
+                {{ selected_system.name }} - {{ selected_system.description }}
+            {% else %}
+                Exibindo todos os sistemas.
+            {% endif %}
+        </p>
+        <div id="dt-properties"></div>
+    </div>
 </div>
 
-<div id="info-panel" class="hidden">
-    <h3>Detalhes do Gêmeo Digital</h3>
-    <p><strong>Nome:</strong> <span id="dt-name"></span></p>
-    <p><strong>Modelo:</strong> <span id="dt-model"></span></p>
-    <h4>Propriedades</h4>
-    <div id="dt-properties"></div>
-    <button class="btn btn-danger" onclick="closePanel()">Fechar</button>
+<!-- Botão para Criar Novo Gêmeo Digital -->
+<div class="text-end mt-3">
+    <a href="/instances/create/" class="btn btn-success">+ Criar Novo Gêmeo Digital</a>
 </div>
 
 <style>
+    /* Ajusta a visualização */
+    .container-fluid {
+        display: flex;
+        height: calc(100vh - 60px);
+    }
+
+    /* Painel lateral fixo */
     #info-panel {
-        position: fixed;
-        top: 0;
-        right: 0;
         width: 300px;
-        height: 100vh;
         background: white;
         box-shadow: -2px 0px 5px rgba(0,0,0,0.2);
         padding: 20px;
         overflow-y: auto;
-        display: none;
+        height: 100%;
     }
 
-    .hidden {
-        display: none;
+    /* Área do Grafo com Scroll */
+    #graph-container-wrapper {
+        flex: 1;
+        overflow: auto;
+        border: 1px solid #ddd;
+    }
+
+    #graph-container {
+        width: 800px;
+        height: 600px;
+        position: relative;
+    }
+
+    #graph-svg {
+        width: 100%;
+        height: 100%;
     }
 </style>
-<script>
-    function showPanel(data) {
-        document.getElementById("dt-name").innerText = data.name;
-        document.getElementById("dt-model").innerText = data.model;
-
-        let propertiesHTML = "";
-        data.properties.forEach(prop => {
-            propertiesHTML += `<p><strong>${prop.name}:</strong> <input type="text" value="${prop.value}" onchange="updateProperty('${data.id}', '${prop.name}', this.value)"></p>`;
-        });
-
-        document.getElementById("dt-properties").innerHTML = propertiesHTML;
-        document.getElementById("info-panel").style.display = "block";
-    }
-
-    function closePanel() {
-        document.getElementById("info-panel").style.display = "none";
-    }
-
-    function updateProperty(id, property, value) {
-        fetch(`/instances/${id}/update_property/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ property: property, value: value })
-        }).then(response => response.json())
-          .then(data => console.log("Propriedade atualizada:", data));
-    }
-</script>
 <!-- D3.js para a visualização do grafo -->
 <script src="https://d3js.org/d3.v7.min.js"></script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         let width = 800, height = 600;
-        let svg = d3.select("#graph-container").append("svg")
+        let svg = d3.select("#graph-svg")
                     .attr("width", width)
                     .attr("height", height);
 
@@ -99,7 +103,7 @@
 
         let relationships = [
             {% for relation in relationships %}
-                { source: "{{ relation.source_instance.id }}", target: "{{ relation.target_instance.id }}", name: "{{ relation.relationship.name }}" },
+                { source: "{{ relation.source_instance.id }}", target: "{{ relation.target_instance.id }}" },
             {% endfor %}
         ];
 
@@ -119,6 +123,9 @@
             .enter().append("circle")
             .attr("r", 15)
             .attr("fill", "#007bff")
+            .on("click", function(event, d) {
+                showPanel(d);
+            })
             .call(d3.drag()
                 .on("start", dragStarted)
                 .on("drag", dragged)
@@ -164,6 +171,27 @@
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
+        }
+
+        function showPanel(data) {
+            document.getElementById("panel-title").innerText = data.name;
+            document.getElementById("panel-content").innerHTML = `<strong>Modelo:</strong> ${data.model}`;
+
+            let propertiesHTML = "";
+            data.properties.forEach(prop => {
+                propertiesHTML += `<p><strong>${prop.name}:</strong> <input type="text" value="${prop.value}" onchange="updateProperty('${data.id}', '${prop.name}', this.value)"></p>`;
+            });
+
+            document.getElementById("dt-properties").innerHTML = propertiesHTML;
+        }
+
+        function updateProperty(id, property, value) {
+            fetch(`/instances/${id}/update_property/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ property: property, value: value })
+            }).then(response => response.json())
+              .then(data => console.log("Propriedade atualizada:", data));
         }
     });
 </script>

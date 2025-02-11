@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from .models import DigitalTwinInstance, DigitalTwinInstanceRelationship, ModelRelationship, SystemContext, DTDLModel
 
 
@@ -61,8 +61,12 @@ def list_instances(request):
     selected_system_id = request.GET.get("system_id")  
     systems = SystemContext.objects.all()  
 
+    selected_system = None
     if selected_system_id:
-        instances = DigitalTwinInstance.objects.filter(model__system_id=selected_system_id)
+        selected_system = get_object_or_404(SystemContext, id=selected_system_id)
+
+    if selected_system:
+        instances = DigitalTwinInstance.objects.filter(model__system=selected_system)
     else:
         instances = DigitalTwinInstance.objects.all()
 
@@ -70,11 +74,10 @@ def list_instances(request):
 
     return render(request, "instances.html", {
         "systems": systems,
-        "selected_system_id": int(selected_system_id) if selected_system_id else None,
+        "selected_system": selected_system,
         "instances": instances,
         "relationships": relationships
     })
-
 
 
 
