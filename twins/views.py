@@ -81,7 +81,7 @@ def list_instances(request):
             "name": instance.name,
             "model": instance.model.name,
             "properties": [
-                {"id": prop.id, "name": prop.name, "value": prop.value, "can_edit": prop.causal or prop.type.lower() if prop.type else False == "property"}
+                {"id": prop.id, "name": prop.name, "value": prop.value, "type": prop.type, "can_edit": prop.causal or True if prop.type and prop.type.lower() == "property" else False }
                 for prop in instance.properties.all()
             ]
         }

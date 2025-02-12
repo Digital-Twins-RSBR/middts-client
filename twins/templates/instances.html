@@ -25,15 +25,22 @@
     <div id="graph-container-wrapper">
         <div id="graph-container">
             <svg id="graph-svg"></svg>
+            <div id="minimap-container">
+                <svg id="minimap-svg"></svg>
+            </div>
+        </div>
+        <div id="zoom-controls">
+            <button onclick="zoomIn()">+</button>
+            <button onclick="zoomOut()">-</button>
         </div>
     </div>
 
     <!-- Painel Lateral de Informações -->
     <div id="info-panel">
+        <button id="toggle-panel-btn" class="btn btn-dark" onclick="togglePanel()">
+            <span class="menu-icon">&#9776;</span>
+        </button>
         <div class="panel-header">
-            <button id="toggle-panel-btn" class="btn btn-dark" onclick="togglePanel()">
-                <span class="menu-icon">&#9776;</span>
-            </button>
             <h3 id="panel-title">Informações</h3>
         </div>
         <div id="panel-content-wrapper">
@@ -52,7 +59,6 @@
             <button id="save-btn" class="btn btn-primary mt-3" onclick="saveProperties()" style="display: none;">Salvar Alterações</button>
         </div>
     </div>
-
 </div>
 
 <style>
@@ -78,16 +84,25 @@
     .panel-header {
         display: flex;
         align-items: center;
+        margin-left: 50px; /* Adiciona margem para o ícone */
     }
 
     /* Botão de colapsar painel */
     #toggle-panel-btn {
+        position: absolute;
+        top: 10px;
+        left: 10px;
         background-color: #343a40;
         border: none;
         font-size: 24px;
         cursor: pointer;
         color: white;
-        margin-right: 10px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
     }
 
     .menu-icon {
@@ -99,17 +114,58 @@
         flex: 1;
         overflow: auto;
         border: 1px solid #ddd;
+        position: relative;
     }
 
     #graph-container {
-        width: 800px;
-        height: 600px;
+        width: 100%;
+        height: 100%;
         position: relative;
     }
 
     #graph-svg {
         width: 100%;
         height: 100%;
+    }
+
+    /* Minimap */
+    #minimap-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 200px;
+        height: 150px;
+        border: 1px solid #ddd;
+        background: white;
+    }
+
+    #minimap-svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    #zoom-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #zoom-controls button {
+        background-color: #343a40;
+        color: white;
+        border: none;
+        padding: 5px;
+        margin: 2px 0;
+        cursor: pointer;
+    }
+
+    .minimap-viewport {
+        fill: rgba(128, 128, 128, 0.5);
+        stroke: red;
+        stroke-width: 2px;
+        pointer-events: all;
     }
 </style>
 <!-- D3.js para a visualização do grafo -->
@@ -118,12 +174,18 @@
 <script>
     let selectedInstanceId = null;
     let editableProperties = [];
+    let zoomLevel = 1;
+    let viewport;
 
     document.addEventListener("DOMContentLoaded", function () {
         let width = 800, height = 600;
         let svg = d3.select("#graph-svg")
                     .attr("width", width)
                     .attr("height", height);
+
+        let minimapSvg = d3.select("#minimap-svg")
+                           .attr("width", 200)
+                           .attr("height", 150);
 
         let instances = JSON.parse('{{ instances_json|safe }}');
         let relationships = JSON.parse('{{ relationships_json|safe }}');
@@ -175,6 +237,34 @@
             labels
                 .attr("x", d => d.x + 5)
                 .attr("y", d => d.y + 5);
+
+            // Atualiza o minimapa
+            minimapSvg.selectAll("*").remove();
+            minimapSvg.append("g")
+                .attr("transform", `scale(${0.25})`)
+                .append(() => svg.node().cloneNode(true));
+
+            // Adiciona o retângulo semitransparente
+            viewport = minimapSvg.append("rect")
+                .attr("class", "minimap-viewport")
+                .attr("width", 200 / zoomLevel)
+                .attr("height", 150 / zoomLevel)
+                .attr("x", 0)
+                .attr("y", 0)
+                .call(d3.drag().on("drag", function(event) {
+                    let x = Math.max(0, Math.min(event.x, 200 - viewport.attr("width")));
+                    let y = Math.max(0, Math.min(event.y, 150 - viewport.attr("height")));
+                    svg.attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
+                    viewport.attr("x", x).attr("y", y);
+                }));
+
+            minimapSvg.on("click", function(event) {
+                let [x, y] = d3.pointer(event);
+                x = Math.max(0, Math.min(x, 200 - viewport.attr("width")));
+                y = Math.max(0, Math.min(y, 150 - viewport.attr("height")));
+                svg.attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
+                viewport.attr("x", x).attr("y", y);
+            });
         });
 
         function dragStarted(event, d) {
@@ -266,6 +356,45 @@
             toggleBtn.innerHTML = '<span class="menu-icon">&#9776;</span>';
         }
     }
+
+    function zoomIn() {
+        zoomLevel += 0.1;
+        d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
+        updateViewport();
+    }
+
+    function zoomOut() {
+        zoomLevel -= 0.1;
+        d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
+        updateViewport();
+    }
+
+    function updateViewport() {
+        let width = 800, height = 600;
+        let x = parseFloat(viewport.attr("x"));
+        let y = parseFloat(viewport.attr("y"));
+        viewport.attr("width", 200 / zoomLevel)
+                .attr("height", 150 / zoomLevel);
+        d3.select("#graph-svg").attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.shiftKey && event.key === "+") {
+            zoomIn();
+        } else if (event.shiftKey && event.key === "-") {
+            zoomOut();
+        }
+    });
+
+    document.addEventListener("wheel", function(event) {
+        if (event.shiftKey) {
+            if (event.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        }
+    });
 </script>
 
 {% endblock %}
