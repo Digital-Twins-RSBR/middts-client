@@ -77,9 +77,9 @@ CORS_ALLOWED_ORIGINS = [
 ```
 ### Explicação das Configurações
 
-SITE_URL: Esta configuração define a URL base do cliente Middts. No exemplo, o cliente está rodando em http://localhost:8004.
-MIDDTS_API_URL: Esta configuração define a URL base da API do Middts. No exemplo, a API está disponível em http://localhost:8000/api.
-CORS_ALLOWED_ORIGINS: Esta configuração permite que o cliente Middts faça requisições para a API do Middts. No exemplo, as origens permitidas são http://localhost:8000 e http://127.0.0.1:8000.
+* SITE_URL: Esta configuração define a URL base do cliente Middts. No exemplo, o cliente está rodando em http://localhost:8004.
+* MIDDTS_API_URL: Esta configuração define a URL base da API do Middts. No exemplo, a API está disponível em http://localhost:8000/api.
+* CORS_ALLOWED_ORIGINS: Esta configuração permite que o cliente Middts faça requisições para a API do Middts. No exemplo, as origens permitidas são http://localhost:8000 e http://127.0.0.1:8000.
 
 
 ## Uso
