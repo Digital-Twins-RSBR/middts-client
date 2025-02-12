@@ -30,17 +30,27 @@
 
     <!-- Painel Lateral de Informações -->
     <div id="info-panel">
-        <h3 id="panel-title">Informações</h3>
-        <p id="panel-content">
-            {% if selected_system %}
-                <strong>{{ selected_system.name }}</strong> - {{ selected_system.description }}
-            {% else %}
-                <strong>Exibindo todos os sistemas.</strong>
-            {% endif %}
-        </p>
-        <h4>Propriedades Editáveis</h4>
-        <div id="dt-properties"></div>
-        <button class="btn btn-primary mt-3" onclick="saveProperties()">Salvar Alterações</button>
+        <div class="panel-header">
+            <button id="toggle-panel-btn" class="btn btn-dark" onclick="togglePanel()">
+                <span class="menu-icon">&#9776;</span>
+            </button>
+            <h3 id="panel-title">Informações</h3>
+        </div>
+        <div id="panel-content-wrapper">
+            <p id="panel-content">
+                {% if selected_system %}
+                    <strong>{{ selected_system.name }}</strong> - {{ selected_system.description }}
+                {% else %}
+                    <strong>Exibindo todos os sistemas.</strong>
+                {% endif %}
+            </p>
+            <div id="non-editable-properties"></div>
+            <div id="editable-properties-wrapper" style="display: none;">
+                <h4>Propriedades</h4>
+                <div id="dt-properties"></div>
+            </div>
+            <button id="save-btn" class="btn btn-primary mt-3" onclick="saveProperties()" style="display: none;">Salvar Alterações</button>
+        </div>
     </div>
 
 </div>
@@ -54,12 +64,34 @@
 
     /* Painel lateral fixo */
     #info-panel {
-        width: 300px;
+        width: 400px;
         background: white;
         box-shadow: -2px 0px 5px rgba(0,0,0,0.2);
         padding: 20px;
         overflow-y: auto;
         height: 100%;
+        transition: width 0.3s;
+        position: relative;
+    }
+
+    /* Cabeçalho do painel */
+    .panel-header {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Botão de colapsar painel */
+    #toggle-panel-btn {
+        background-color: #343a40;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: white;
+        margin-right: 10px;
+    }
+
+    .menu-icon {
+        font-size: 24px;
     }
 
     /* Área do Grafo com Scroll */
@@ -167,22 +199,29 @@
             document.getElementById("panel-title").innerText = data.name;
             document.getElementById("panel-content").innerHTML = `<strong>Modelo:</strong> ${data.model}`;
 
+            let nonEditablePropertiesHTML = "";
             let propertiesHTML = "";
             editableProperties = []; // Resetando propriedades editáveis
 
             data.properties.forEach(prop => {
-                let disabledAttr = prop.can_edit ? "" : "disabled";
-                propertiesHTML += `<p>
-                    <strong>${prop.name}:</strong>
-                    <input type="text" id="prop-${prop.id}" value="${prop.value}" ${disabledAttr}>
-                </p>`;
-
                 if (prop.can_edit) {
+                    propertiesHTML += `<p>
+                        <strong>${prop.name}:</strong>
+                        <input type="text" id="prop-${prop.id}" value="${prop.value}">
+                        <span data-hint="${prop.causal ? 'Causal' : 'Não Causal'}">${prop.causal ? '⚠️' : ''}</span>
+                    </p>`;
                     editableProperties.push({ id: prop.id, name: prop.name, value: prop.value });
+                } else {
+                    nonEditablePropertiesHTML += `<p>
+                        <strong>${prop.name}:</strong> ${prop.type} - ${prop.value}
+                    </p>`;
                 }
             });
 
+            document.getElementById("non-editable-properties").innerHTML = nonEditablePropertiesHTML;
             document.getElementById("dt-properties").innerHTML = propertiesHTML;
+            document.getElementById("editable-properties-wrapper").style.display = editableProperties.length > 0 ? "block" : "none";
+            document.getElementById("save-btn").style.display = editableProperties.length > 0 ? "block" : "none";
         }
     });
 
@@ -211,6 +250,21 @@
         })
         .then(data => alert("Propriedades atualizadas com sucesso!"))
         .catch(error => alert(error.message));
+    }
+
+    function togglePanel() {
+        let panel = document.getElementById("info-panel");
+        let toggleBtn = document.getElementById("toggle-panel-btn");
+        let panelContentWrapper = document.getElementById("panel-content-wrapper");
+        if (panel.style.width === "0px") {
+            panel.style.width = "400px";
+            panelContentWrapper.style.display = "block";
+            toggleBtn.innerHTML = '<span class="menu-icon">&#9776;</span>';
+        } else {
+            panel.style.width = "0px";
+            panelContentWrapper.style.display = "none";
+            toggleBtn.innerHTML = '<span class="menu-icon">&#9776;</span>';
+        }
     }
 </script>
 
