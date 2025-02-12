@@ -218,6 +218,7 @@ class DigitalTwinProperty(models.Model):
 
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255, blank=True, null=True)
+    type = models.CharField(max_length=255, blank=True, null=True)
     causal = models.BooleanField(default=False)  # Apenas propriedades causais podem ser editadas
 
     def __str__(self):
@@ -229,7 +230,7 @@ class DigitalTwinProperty(models.Model):
         """
         old = DigitalTwinProperty.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
-        if self.causal:
+        if self.type == "Property" or self.causal:
             if old and old.value != self.value:
                 result = self.update_value(self.value)
                 if "error" in result:

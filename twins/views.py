@@ -81,7 +81,7 @@ def list_instances(request):
             "name": instance.name,
             "model": instance.model.name,
             "properties": [
-                {"id": prop.id, "name": prop.name, "value": prop.value, "causal": prop.causal}
+                {"id": prop.id, "name": prop.name, "value": prop.value, "can_edit": prop.causal or prop.type.lower() if prop.type else False == "property"}
                 for prop in instance.properties.all()
             ]
         }
@@ -112,16 +112,17 @@ def update_property(request, instance_id):
         for prop in properties:
             try:
                 property_obj = DigitalTwinProperty.objects.get(
-                    id=prop["id"], instance_id=instance_id, causal=True
+                    id=prop["id"], instance_id=instance_id
                 )
-                property_obj.value = prop["value"]
-                property_obj.save()
-                # property_obj.update_value(prop["value"])
-                updated_properties.append({
-                    "id": property_obj.id,
-                    "name": property_obj.name,
-                    "value": property_obj.value
-                })
+                if property_obj.causal or property_obj.type.lower() == "property":
+                    property_obj.value = prop["value"]
+                    property_obj.save()
+                    # property_obj.update_value(prop["value"])
+                    updated_properties.append({
+                        "id": property_obj.id,
+                        "name": property_obj.name,
+                        "value": property_obj.value
+                    })
             except DigitalTwinProperty.DoesNotExist:
                 continue
             except Exception as e:

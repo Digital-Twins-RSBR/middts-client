@@ -89,6 +89,7 @@ def importar_instances(request):
                             middts_id=prop["id"],
                             name=prop["name"],
                             defaults={
+                                "type": prop["type"],
                                 "value": prop["value"],
                                 "causal": prop["causal"]
                             },

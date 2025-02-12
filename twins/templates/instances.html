@@ -171,13 +171,13 @@
             editableProperties = []; // Resetando propriedades editáveis
 
             data.properties.forEach(prop => {
-                let disabledAttr = prop.causal ? "" : "disabled";
+                let disabledAttr = prop.can_edit ? "" : "disabled";
                 propertiesHTML += `<p>
                     <strong>${prop.name}:</strong>
                     <input type="text" id="prop-${prop.id}" value="${prop.value}" ${disabledAttr}>
                 </p>`;
 
-                if (prop.causal) {
+                if (prop.can_edit) {
                     editableProperties.push({ id: prop.id, name: prop.name, value: prop.value });
                 }
             });
