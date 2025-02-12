@@ -33,18 +33,16 @@
         <h3 id="panel-title">Informações</h3>
         <p id="panel-content">
             {% if selected_system %}
-                {{ selected_system.name }} - {{ selected_system.description }}
+                <strong>{{ selected_system.name }}</strong> - {{ selected_system.description }}
             {% else %}
-                Exibindo todos os sistemas.
+                <strong>Exibindo todos os sistemas.</strong>
             {% endif %}
         </p>
+        <h4>Propriedades Editáveis</h4>
         <div id="dt-properties"></div>
+        <button class="btn btn-primary mt-3" onclick="saveProperties()">Salvar Alterações</button>
     </div>
-</div>
 
-<!-- Botão para Criar Novo Gêmeo Digital -->
-<div class="text-end mt-3">
-    <a href="/instances/create/" class="btn btn-success">+ Criar Novo Gêmeo Digital</a>
 </div>
 
 <style>
@@ -84,28 +82,19 @@
 </style>
 <!-- D3.js para a visualização do grafo -->
 <script src="https://d3js.org/d3.v7.min.js"></script>
+
 <script>
+    let selectedInstanceId = null;
+    let editableProperties = [];
+
     document.addEventListener("DOMContentLoaded", function () {
         let width = 800, height = 600;
         let svg = d3.select("#graph-svg")
                     .attr("width", width)
                     .attr("height", height);
 
-        let instances = [
-            {% for instance in instances %}
-                { id: "{{ instance.id }}", name: "{{ instance.name }}", model: "{{ instance.model.name }}", properties: [
-                    {% for prop in instance.properties.all %}
-                        { name: "{{ prop.name }}", value: "{{ prop.value }}" },
-                    {% endfor %}
-                ] },
-            {% endfor %}
-        ];
-
-        let relationships = [
-            {% for relation in relationships %}
-                { source: "{{ relation.source_instance.id }}", target: "{{ relation.target_instance.id }}" },
-            {% endfor %}
-        ];
+        let instances = JSON.parse('{{ instances_json|safe }}');
+        let relationships = JSON.parse('{{ relationships_json|safe }}');
 
         let simulation = d3.forceSimulation(instances)
             .force("link", d3.forceLink(relationships).id(d => d.id).distance(150))
@@ -174,26 +163,55 @@
         }
 
         function showPanel(data) {
+            selectedInstanceId = data.id;
             document.getElementById("panel-title").innerText = data.name;
             document.getElementById("panel-content").innerHTML = `<strong>Modelo:</strong> ${data.model}`;
 
             let propertiesHTML = "";
+            editableProperties = []; // Resetando propriedades editáveis
+
             data.properties.forEach(prop => {
-                propertiesHTML += `<p><strong>${prop.name}:</strong> <input type="text" value="${prop.value}" onchange="updateProperty('${data.id}', '${prop.name}', this.value)"></p>`;
+                let disabledAttr = prop.causal ? "" : "disabled";
+                propertiesHTML += `<p>
+                    <strong>${prop.name}:</strong>
+                    <input type="text" id="prop-${prop.id}" value="${prop.value}" ${disabledAttr}>
+                </p>`;
+
+                if (prop.causal) {
+                    editableProperties.push({ id: prop.id, name: prop.name, value: prop.value });
+                }
             });
 
             document.getElementById("dt-properties").innerHTML = propertiesHTML;
         }
-
-        function updateProperty(id, property, value) {
-            fetch(`/instances/${id}/update_property/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ property: property, value: value })
-            }).then(response => response.json())
-              .then(data => console.log("Propriedade atualizada:", data));
-        }
     });
+
+    function saveProperties() {
+        if (!selectedInstanceId) {
+            alert("Nenhum Gêmeo Digital selecionado.");
+            return;
+        }
+
+        let updatedProperties = editableProperties.map(prop => {
+            let inputField = document.getElementById(`prop-${prop.id}`);
+            return { id: prop.id, name: prop.name, value: inputField.value };
+        });
+
+        fetch(`/instances/${selectedInstanceId}/properties/update/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ properties: updatedProperties })
+        }).then(response => {
+            if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || "Erro ao atualizar propriedades");
+            });
+            }
+            return response.json();
+        })
+        .then(data => alert("Propriedades atualizadas com sucesso!"))
+        .catch(error => alert(error.message));
+    }
 </script>
 
 {% endblock %}

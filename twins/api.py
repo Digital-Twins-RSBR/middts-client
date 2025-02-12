@@ -2,7 +2,7 @@ import requests
 from ninja import NinjaAPI
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from twins.models import DigitalTwinInstanceRelationship, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding
+from twins.models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding
 
 api = NinjaAPI()
 
@@ -53,10 +53,8 @@ def importar_instances(request):
     systems = SystemContext.objects.filter(middts_id__isnull=False)
     for system in systems:
         response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system.middts_id}/instances/")
-        
         if response.status_code == 200:
             instances = response.json()
-            import ipdb; ipdb.set_trace()
             for instance in instances:
                 # Nome baseado no modelo
                 model_middts_id = instance.get('model')
@@ -69,7 +67,7 @@ def importar_instances(request):
                         defaults={
                             "model": dtdlmodel,
                             "name": instance_name,
-                            "properties": instance.get("digitaltwininstanceproperty_set", {}),
+                            "properties_json": instance.get("digitaltwininstanceproperty_set", {}),
                         },
                     )
 
@@ -83,6 +81,18 @@ def importar_instances(request):
                                 target_instance=target_instance,
                                 defaults={"relationship": relationship["relationship_name"]},
                             )
+
+                    # Criar as propriedades da instância
+                    for prop in instance.get("digitaltwininstanceproperty_set", []):
+                        DigitalTwinProperty.objects.update_or_create(
+                            instance=dt_instance,
+                            middts_id=prop["id"],
+                            name=prop["name"],
+                            defaults={
+                                "value": prop["value"],
+                                "causal": prop["causal"]
+                            },
+                        )
 
     return {"message": "Importação de Instâncias concluída com sucesso!"}
 
@@ -139,6 +149,7 @@ def bind_dtinstance_device(request, system_id: int, dtinstance_id: int, device_i
     payload = {"device_property_id": device_id, "property_mapping": property_mapping}
     response = requests.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/{dtinstance_id}/bind/", json=payload)
     return response.json()
+
 
 
 # Atualizar uma propriedade causal de um Gêmeo Digital

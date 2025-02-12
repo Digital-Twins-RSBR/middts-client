@@ -1,5 +1,8 @@
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404
-from .models import DigitalTwinInstance, DigitalTwinInstanceRelationship, ModelRelationship, SystemContext, DTDLModel
+from .models import DigitalTwinInstance, DigitalTwinInstanceRelationship, DigitalTwinProperty, ModelRelationship, SystemContext, DTDLModel
 
 
 
@@ -72,12 +75,59 @@ def list_instances(request):
 
     relationships = DigitalTwinInstanceRelationship.objects.filter(source_instance__in=instances)
 
+    instances_list = [
+        {
+            "id": instance.id,
+            "name": instance.name,
+            "model": instance.model.name,
+            "properties": [
+                {"id": prop.id, "name": prop.name, "value": prop.value, "causal": prop.causal}
+                for prop in instance.properties.all()
+            ]
+        }
+        for instance in instances
+    ]
+
+    relationships_list = [
+        {"source": rel.source_instance.id, "target": rel.target_instance.id}
+        for rel in relationships
+    ]
+
     return render(request, "instances.html", {
         "systems": systems,
         "selected_system": selected_system,
-        "instances": instances,
-        "relationships": relationships
+        "instances_json": json.dumps(instances_list),  # Passamos JSON puro para o template
+        "relationships_json": json.dumps(relationships_list)  # JSON puro para o template
     })
 
+@csrf_exempt
+def update_property(request, instance_id):
+    """
+    Atualiza todas as propriedades editáveis de um Gêmeo Digital.
+    """
+    if request.method == "POST":
+        data = json.loads(request.body)
+        properties = data.get("properties", [])
+        updated_properties = []
+        for prop in properties:
+            try:
+                property_obj = DigitalTwinProperty.objects.get(
+                    id=prop["id"], instance_id=instance_id, causal=True
+                )
+                property_obj.value = prop["value"]
+                property_obj.save()
+                # property_obj.update_value(prop["value"])
+                updated_properties.append({
+                    "id": property_obj.id,
+                    "name": property_obj.name,
+                    "value": property_obj.value
+                })
+            except DigitalTwinProperty.DoesNotExist:
+                continue
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=400)
 
+        return JsonResponse({"message": "Propriedades atualizadas", "updated_properties": updated_properties}, status=200)
+
+    return JsonResponse({"error": "Método não permitido"}, status=405)
 

@@ -202,11 +202,51 @@ class ModelRelationship(models.Model):
 class DigitalTwinInstance(models.Model):
     model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, related_name="instances")
     name = models.CharField(max_length=255)
-    properties = models.JSONField(default=dict)
+    properties_json = models.JSONField(default=dict)
     middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
 
     def __str__(self):
         return f"{self.name} ({self.model.name})"
+    
+
+class DigitalTwinProperty(models.Model):
+    """
+    Representa as propriedades dos Gêmeos Digitais.
+    """
+    instance = models.ForeignKey(DigitalTwinInstance, on_delete=models.CASCADE, related_name="properties")
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+
+    name = models.CharField(max_length=255)
+    value = models.CharField(max_length=255, blank=True, null=True)
+    causal = models.BooleanField(default=False)  # Apenas propriedades causais podem ser editadas
+
+    def __str__(self):
+        return f"{self.instance.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        """
+        Salva a propriedade e sincroniza com o Middts se for uma propriedade causal.
+        """
+        old = DigitalTwinProperty.objects.filter(pk=self.pk).first()
+        super().save(*args, **kwargs)
+        if self.causal:
+            if old and old.value != self.value:
+                result = self.update_value(self.value)
+                if "error" in result:
+                    raise Exception(result["error"])
+
+    def update_value(self, new_value):
+        """
+        Atualiza o valor da propriedade no Middts.
+        """
+        url = f"{MIDDTS_API_URL}/orchestrator/systems/{self.instance.model.system.middts_id}/instances/{self.instance.middts_id}/properties/{self.middts_id}/"
+        response = requests.put(url, json={"value": new_value})
+        if response.status_code == 200:
+            self.value = new_value
+            self.save(update_fields=["value"])
+            return response.json()
+        else:
+            return {"error": "Falha ao atualizar a propriedade no Middts"}
 
 
 class DigitalTwinInstanceRelationship(models.Model):

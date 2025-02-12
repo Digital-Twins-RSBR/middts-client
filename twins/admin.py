@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import path
 import requests
-from .models import DigitalTwinInstanceRelationship, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding, ModelElement, ModelRelationship
+from .models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding, ModelElement, ModelRelationship
 
 
 @admin.action(description="Importar Systems do Middts")
@@ -98,14 +98,14 @@ class DTDLModelAdmin(admin.ModelAdmin):
 
 @admin.action(description="Importar Instâncias de Gêmeos Digitais do Middts")
 def importar_instances_do_middts(modeladmin, request, queryset):
-    for model in queryset:
-        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{model.system.middts_id}/instances/")
+    for instance in queryset:
+        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{instance.model.system.middts_id}/instances/")
         if response.status_code == 200:
             instances = response.json()
             for instance in instances:
                 obj, created = DigitalTwinInstance.objects.update_or_create(
                     middts_id=instance["id"],
-                    defaults={"model": model, "name": instance["name"], "properties": instance.get("properties", {})},
+                    defaults={"model": instance.model, "name": instance["name"], "properties": instance.get("properties", {})},
                 )
                 if created:
                     modeladmin.message_user(request, f"Importado: {instance['name']}")
@@ -117,7 +117,7 @@ def importar_instances_do_middts(modeladmin, request, queryset):
                 for relationship in relationships:
                     target_instance, _ = DigitalTwinInstance.objects.update_or_create(
                         middts_id=relationship["target_id"],
-                        defaults={"model": model, "name": relationship["target_name"], "properties": relationship.get("target_properties", {})},
+                        defaults={"model": instance.model, "name": relationship["target_name"], "properties": relationship.get("target_properties", {})},
                     )
                     DigitalTwinInstanceRelationship.objects.update_or_create(
                         source_instance=obj,
@@ -125,13 +125,22 @@ def importar_instances_do_middts(modeladmin, request, queryset):
                         defaults={"target_instance": target_instance},
                     )
         else:
-            modeladmin.message_user(request, f"Erro ao importar instâncias do modelo {model.name}", level="error")
+            modeladmin.message_user(request, f"Erro ao importar instâncias do modelo {instance.model.name}", level="error")
 
+class DigitalTwinPropertyInline(admin.TabularInline):
+            model = DigitalTwinProperty
+            extra = 1
+
+class DigitalTwinInstanceRelationshipInline(admin.TabularInline):
+    model = DigitalTwinInstanceRelationship
+    fk_name = "source_instance"
+    extra = 1
 
 @admin.register(DigitalTwinInstance)
 class DigitalTwinInstanceAdmin(admin.ModelAdmin):
     list_display = ("name", "model", "middts_id")
     actions = [importar_instances_do_middts]
+    inlines = [DigitalTwinPropertyInline, DigitalTwinInstanceRelationshipInline]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -152,6 +161,14 @@ class DigitalTwinInstanceAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context["import_instances_url"] = "import-instances/"
         return super().changelist_view(request, extra_context=extra_context)
+        
+
+
+@admin.register(DigitalTwinProperty)
+class DigitalTwinPropertyAdmin(admin.ModelAdmin):
+    list_display = ("name", "value", "instance")
+    list_filter = ("instance",)
+    search_fields = ("name", "instance__name")
 
 
 @admin.register(DigitalTwinInstanceRelationship)
