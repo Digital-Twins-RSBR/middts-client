@@ -1,8 +1,10 @@
 import json
+from django.conf import settings
+import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404
-from .models import DigitalTwinInstance, DigitalTwinInstanceRelationship, DigitalTwinProperty, ModelRelationship, SystemContext, DTDLModel
+from .models import SystemContext, DigitalTwinInstance, DigitalTwinInstanceRelationship, DigitalTwinProperty, ModelRelationship, DTDLModel
 
 
 
@@ -132,3 +134,43 @@ def update_property(request, instance_id):
 
     return JsonResponse({"error": "Método não permitido"}, status=405)
 
+
+def dtexplorer(request):
+    selected_system_id = request.GET.get("system_id")
+    systems = SystemContext.objects.all()
+    selected_system = None
+    query_result = None
+    error_message = None
+    if selected_system_id:
+        selected_system = get_object_or_404(SystemContext, id=selected_system_id)
+
+    if request.method == "POST":
+        cypher_query = request.POST.get("cypher_query")
+        if selected_system and cypher_query:
+            try:
+                response = requests.post(
+                    f"{settings.MIDDTS_API_URL}/orchestrator/systems/{selected_system.middts_id}/instances/query/",
+                    json={"query": cypher_query}
+                )
+                response.raise_for_status()
+                query_result = response.json()
+                # Segunda consulta para buscar relacionamentos
+                node_ids = [node["identity"] for result in query_result["results"] for node in result if "identity" in node]
+                if node_ids:
+                    relationships_query = f"MATCH (a)-[r]->(b) WHERE id(a) IN {node_ids} OR id(b) IN {node_ids} RETURN r"
+                    response = requests.post(
+                        f"{settings.MIDDTS_API_URL}/orchestrator/systems/{selected_system.middts_id}/instances/query/",
+                        json={"query": relationships_query}
+                    )
+                    response.raise_for_status()
+                    relationships_result = response.json()
+                    query_result["relationships"] = relationships_result["results"]
+            except requests.RequestException as e:
+                error_message = str(e)
+
+    return render(request, "dtexplorer.html", {
+        "systems": systems,
+        "selected_system": selected_system,
+        "query_result": json.dumps(query_result) if query_result else None,
+        "error_message": error_message
+    })
