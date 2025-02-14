@@ -50,6 +50,7 @@
             <div id="zoom-controls">
                 <button onclick="zoomIn()">+</button>
                 <button onclick="zoomOut()">-</button>
+                <button onclick="resetZoom()">Reset</button>
             </div>
         </div>
 
@@ -175,6 +176,11 @@
             stroke-width: 2px;
             pointer-events: all;
         }
+
+        .highlighted {
+            stroke: #ff0000;
+            stroke-width: 3px;
+        }
     </style>
 
     <!-- D3.js para a visualização do grafo -->
@@ -183,6 +189,8 @@
         let selectedInstanceId = null;
         let zoomLevel = 1;
         let viewport;
+        let isPanning = false;
+        let startX, startY;
 
         document.addEventListener("DOMContentLoaded", function () {
             let width = 800, height = 600;
@@ -238,31 +246,66 @@
                 .enter().append("line")
                 .style("stroke", "#999")
                 .style("stroke-width", "2px")
-                .on("click", function(event, d) {
+                .attr("marker-end", "url(#arrow)")
+                .on("mouseover", function(event, d) {
+                    d3.select(this).classed("highlighted", true);
                     showLinkPanel(d);
+                })
+                .on("mouseout", function(event, d) {
+                    d3.select(this).classed("highlighted", false);
                 });
+
+            let linkLabels = svg.selectAll(".link-label")
+                .data(links)
+                .enter().append("text")
+                .attr("class", "link-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", -5)
+                .style("font-size", "12px")
+                .style("fill", "#555")
+                .text(d => d.type);
 
             let node = svg.selectAll("circle")
                 .data(nodes)
                 .enter().append("circle")
-                .attr("r", 15)
+                .attr("r", 30)
                 .attr("fill", "#007bff")
-                .on("click", function(event, d) {
+                .on("mouseover", function(event, d) {
+                    d3.select(this).classed("highlighted", true);
                     showPanel(d);
+                })
+                .on("mouseout", function(event, d) {
+                    d3.select(this).classed("highlighted", false);
                 })
                 .call(d3.drag()
                     .on("start", dragStarted)
                     .on("drag", dragged)
                     .on("end", dragEnded));
 
-            let labels = svg.selectAll("text")
+            let labels = svg.selectAll(".node-label")
                 .data(nodes)
                 .enter().append("text")
-                .attr("dx", 18)
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
                 .attr("dy", ".35em")
                 .style("font-size", "14px")
-                .style("fill", "#333")
-                .text(d => d.properties ? d.properties.name : "");
+                .style("fill", "#fff")
+                .text(d => d.properties ? d.properties.name : "")
+                .on("click", function(event, d) {
+                    showPanel(d);
+                });
+
+            svg.append("defs").append("marker")
+                .attr("id", "arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 15)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#999");
 
             simulation.on("tick", function () {
                 link
@@ -271,13 +314,17 @@
                     .attr("x2", d => d.target.x)
                     .attr("y2", d => d.target.y);
 
+                linkLabels
+                    .attr("x", d => (d.source.x + d.target.x) / 2)
+                    .attr("y", d => (d.source.y + d.target.y) / 2);
+
                 node
                     .attr("cx", d => d.x)
                     .attr("cy", d => d.y);
 
                 labels
-                    .attr("x", d => d.x + 5)
-                    .attr("y", d => d.y + 5);
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
 
                 // Atualiza o minimapa
                 minimapSvg.selectAll("*").remove();
@@ -306,6 +353,37 @@
                     svg.attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
                     viewport.attr("x", x).attr("y", y);
                 });
+            });
+
+            svg.on("mousedown", function(event) {
+                if (event.button === 2) {
+                    isPanning = true;
+                    startX = event.x;
+                    startY = event.y;
+                    svg.style("cursor", "grabbing");
+                }
+            });
+
+            svg.on("mousemove", function(event) {
+                if (isPanning) {
+                    let dx = (startX - event.x) / zoomLevel;
+                    let dy = (startY - event.y) / zoomLevel;
+                    let viewBox = svg.attr("viewBox").split(" ").map(Number);
+                    svg.attr("viewBox", `${viewBox[0] + dx} ${viewBox[1] + dy} ${viewBox[2]} ${viewBox[3]}`);
+                    startX = event.x;
+                    startY = event.y;
+                }
+            });
+
+            svg.on("mouseup", function(event) {
+                if (event.button === 2) {
+                    isPanning = false;
+                    svg.style("cursor", "default");
+                }
+            });
+
+            svg.on("contextmenu", function(event) {
+                event.preventDefault();
             });
 
             function dragStarted(event, d) {
@@ -380,6 +458,13 @@
             zoomLevel -= 0.1;
             d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
             updateViewport();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
+            d3.select("#graph-svg").attr("viewBox", `0 0 800 600`);
+            viewport.attr("x", 0).attr("y", 0).attr("width", 200).attr("height", 150);
         }
 
         function updateViewport() {
