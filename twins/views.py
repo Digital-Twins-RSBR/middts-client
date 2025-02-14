@@ -168,9 +168,41 @@ def dtexplorer(request):
             except requests.RequestException as e:
                 error_message = str(e)
 
+    # Formatar os dados para o componente GraphComponent
+    formatted_data = {
+        "nodes": [],
+        "links": []
+    }
+    if query_result:
+        for result in query_result["results"]:
+            for element in result:
+                if "identity" in element:
+                    formatted_data["nodes"].append({
+                        "id": element["identity"],
+                        "labels": element["labels"],
+                        "properties": element["properties"]
+                    })
+                elif "start" in element and "end" in element:
+                    formatted_data["links"].append({
+                        "source": element["start"],
+                        "target": element["end"],
+                        "type": element["type"],
+                        "properties": element["properties"]
+                    })
+        if "relationships" in query_result:
+            for result in query_result["relationships"]:
+                for element in result:
+                    if "start_node" in element and "end_node" in element:
+                        formatted_data["links"].append({
+                            "source": element["start_node"],
+                            "target": element["end_node"],
+                            "type": element["type"],
+                            "properties": element["properties"]
+                        })
+
     return render(request, "dtexplorer.html", {
         "systems": systems,
         "selected_system": selected_system,
-        "query_result": json.dumps(query_result) if query_result else None,
+        "query_result": json.dumps(formatted_data) if query_result else None,
         "error_message": error_message
     })

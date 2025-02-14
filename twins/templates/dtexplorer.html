@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% load static %}
 {% block title %}Consulta Cypher{% endblock %}
 
 {% block content %}
@@ -41,16 +41,11 @@
     <div class="container-fluid mt-5 d-flex">
         <!-- Container do Grafo -->
         <div id="graph-container-wrapper">
-            <div id="graph-container">
-                <svg id="graph-svg"></svg>
-                <div id="minimap-container">
-                    <svg id="minimap-svg"></svg>
-                </div>
-            </div>
+            <div id="graph-container"></div>
             <div id="zoom-controls">
-                <button onclick="zoomIn()">+</button>
-                <button onclick="zoomOut()">-</button>
-                <button onclick="resetZoom()">Reset</button>
+                <button onclick="graphComponent.zoomIn()">+</button>
+                <button onclick="graphComponent.zoomOut()">-</button>
+                <button onclick="graphComponent.resetZoom()">Reset</button>
             </div>
         </div>
 
@@ -183,254 +178,14 @@
         }
     </style>
 
-    <!-- D3.js para a visualização do grafo -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="{% static 'js/graphComponent.js' %}"></script>
     <script>
-        let selectedInstanceId = null;
-        let zoomLevel = 1;
-        let viewport;
-        let isPanning = false;
-        let startX, startY;
+        let graphComponent;
 
         document.addEventListener("DOMContentLoaded", function () {
-            let width = 800, height = 600;
-            let svg = d3.select("#graph-svg")
-                        .attr("width", width)
-                        .attr("height", height);
-
-            let minimapSvg = d3.select("#minimap-svg")
-                               .attr("width", 200)
-                               .attr("height", 150);
-
-            let queryResult = JSON.parse(document.getElementById('query-result').textContent);
-            let nodes = [];
-            let links = [];
-
-            queryResult.results.forEach(result => {
-                result.forEach(element => {
-                    if (element.identity) {
-                        nodes.push(element);
-                    } else if (element.start && element.end) {
-                        links.push({
-                            source: element.start,
-                            target: element.end,
-                            type: element.type,
-                            properties: element.properties
-                        });
-                    }
-                });
-            });
-
-            if (queryResult.relationships) {
-                queryResult.relationships.forEach(result => {
-                    result.forEach(element => {
-                        if (element.start_node && element.end_node) {
-                            links.push({
-                                source: element.start_node,
-                                target: element.end_node,
-                                type: element.type,
-                                properties: element.properties
-                            });
-                        }
-                    });
-                });
-            }
-
-            let simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.identity).distance(100))
-                .force("charge", d3.forceManyBody().strength(-200))
-                .force("center", d3.forceCenter(width / 2, height / 2));
-
-            let link = svg.selectAll("line")
-                .data(links)
-                .enter().append("line")
-                .style("stroke", "#999")
-                .style("stroke-width", "2px")
-                .attr("marker-end", "url(#arrow)")
-                .on("mouseover", function(event, d) {
-                    d3.select(this).classed("highlighted", true);
-                    showLinkPanel(d);
-                })
-                .on("mouseout", function(event, d) {
-                    d3.select(this).classed("highlighted", false);
-                });
-
-            let linkLabels = svg.selectAll(".link-label")
-                .data(links)
-                .enter().append("text")
-                .attr("class", "link-label")
-                .attr("text-anchor", "middle")
-                .attr("dy", -5)
-                .style("font-size", "12px")
-                .style("fill", "#555")
-                .text(d => d.type);
-
-            let node = svg.selectAll("circle")
-                .data(nodes)
-                .enter().append("circle")
-                .attr("r", 30)
-                .attr("fill", "#007bff")
-                .on("mouseover", function(event, d) {
-                    d3.select(this).classed("highlighted", true);
-                    showPanel(d);
-                })
-                .on("mouseout", function(event, d) {
-                    d3.select(this).classed("highlighted", false);
-                })
-                .call(d3.drag()
-                    .on("start", dragStarted)
-                    .on("drag", dragged)
-                    .on("end", dragEnded));
-
-            let labels = svg.selectAll(".node-label")
-                .data(nodes)
-                .enter().append("text")
-                .attr("class", "node-label")
-                .attr("text-anchor", "middle")
-                .attr("dy", ".35em")
-                .style("font-size", "14px")
-                .style("fill", "#fff")
-                .text(d => d.properties ? d.properties.name : "")
-                .on("click", function(event, d) {
-                    showPanel(d);
-                });
-
-            svg.append("defs").append("marker")
-                .attr("id", "arrow")
-                .attr("viewBox", "0 -5 10 10")
-                .attr("refX", 15)
-                .attr("refY", 0)
-                .attr("markerWidth", 6)
-                .attr("markerHeight", 6)
-                .attr("orient", "auto")
-                .append("path")
-                .attr("d", "M0,-5L10,0L0,5")
-                .attr("fill", "#999");
-
-            simulation.on("tick", function () {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-
-                linkLabels
-                    .attr("x", d => (d.source.x + d.target.x) / 2)
-                    .attr("y", d => (d.source.y + d.target.y) / 2);
-
-                node
-                    .attr("cx", d => d.x)
-                    .attr("cy", d => d.y);
-
-                labels
-                    .attr("x", d => d.x)
-                    .attr("y", d => d.y);
-
-                // Atualiza o minimapa
-                minimapSvg.selectAll("*").remove();
-                minimapSvg.append("g")
-                    .attr("transform", `scale(${0.25})`)
-                    .append(() => svg.node().cloneNode(true));
-
-                // Adiciona o retângulo semitransparente
-                viewport = minimapSvg.append("rect")
-                    .attr("class", "minimap-viewport")
-                    .attr("width", 200 / zoomLevel)
-                    .attr("height", 150 / zoomLevel)
-                    .attr("x", 0)
-                    .attr("y", 0)
-                    .call(d3.drag().on("drag", function(event) {
-                        let x = Math.max(0, Math.min(event.x, 200 - viewport.attr("width")));
-                        let y = Math.max(0, Math.min(event.y, 150 - viewport.attr("height")));
-                        svg.attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
-                        viewport.attr("x", x).attr("y", y);
-                    }));
-
-                minimapSvg.on("click", function(event) {
-                    let [x, y] = d3.pointer(event);
-                    x = Math.max(0, Math.min(x, 200 - viewport.attr("width")));
-                    y = Math.max(0, Math.min(y, 150 - viewport.attr("height")));
-                    svg.attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
-                    viewport.attr("x", x).attr("y", y);
-                });
-            });
-
-            svg.on("mousedown", function(event) {
-                if (event.button === 2) {
-                    isPanning = true;
-                    startX = event.x;
-                    startY = event.y;
-                    svg.style("cursor", "grabbing");
-                }
-            });
-
-            svg.on("mousemove", function(event) {
-                if (isPanning) {
-                    let dx = (startX - event.x) / zoomLevel;
-                    let dy = (startY - event.y) / zoomLevel;
-                    let viewBox = svg.attr("viewBox").split(" ").map(Number);
-                    svg.attr("viewBox", `${viewBox[0] + dx} ${viewBox[1] + dy} ${viewBox[2]} ${viewBox[3]}`);
-                    startX = event.x;
-                    startY = event.y;
-                }
-            });
-
-            svg.on("mouseup", function(event) {
-                if (event.button === 2) {
-                    isPanning = false;
-                    svg.style("cursor", "default");
-                }
-            });
-
-            svg.on("contextmenu", function(event) {
-                event.preventDefault();
-            });
-
-            function dragStarted(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x;
-                d.fy = d.y;
-            }
-
-            function dragged(event, d) {
-                d.fx = event.x;
-                d.fy = event.y;
-            }
-
-            function dragEnded(event, d) {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null;
-                d.fy = null;
-            }
-
-            function showPanel(data) {
-                selectedInstanceId = data.identity;
-                document.getElementById("panel-title").innerText = data.properties.name;
-                document.getElementById("panel-content").innerHTML = `<strong>Descrição:</strong> ${data.properties.description}`;
-
-                let nonEditablePropertiesHTML = "";
-                for (let key in data.properties) {
-                    nonEditablePropertiesHTML += `<p>
-                        <strong>${key}:</strong> ${data.properties[key]}
-                    </p>`;
-                }
-
-                document.getElementById("non-editable-properties").innerHTML = nonEditablePropertiesHTML;
-            }
-
-            function showLinkPanel(data) {
-                document.getElementById("panel-title").innerText = data.type;
-                document.getElementById("panel-content").innerHTML = `<strong>Tipo:</strong> ${data.type}`;
-
-                let nonEditablePropertiesHTML = "";
-                for (let key in data.properties) {
-                    nonEditablePropertiesHTML += `<p>
-                        <strong>${key}:</strong> ${data.properties[key]}
-                    </p>`;
-                }
-
-                document.getElementById("non-editable-properties").innerHTML = nonEditablePropertiesHTML;
-            }
+            const data = JSON.parse(document.getElementById('query-result').textContent);
+            graphComponent = new GraphComponent("graph-container", data);
         });
 
         function togglePanel() {
@@ -447,52 +202,6 @@
                 toggleBtn.innerHTML = '<span class="menu-icon">&#9776;</span>';
             }
         }
-
-        function zoomIn() {
-            zoomLevel += 0.1;
-            d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
-            updateViewport();
-        }
-
-        function zoomOut() {
-            zoomLevel -= 0.1;
-            d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
-            updateViewport();
-        }
-
-        function resetZoom() {
-            zoomLevel = 1;
-            d3.select("#graph-svg").attr("transform", `scale(${zoomLevel})`);
-            d3.select("#graph-svg").attr("viewBox", `0 0 800 600`);
-            viewport.attr("x", 0).attr("y", 0).attr("width", 200).attr("height", 150);
-        }
-
-        function updateViewport() {
-            let width = 800, height = 600;
-            let x = parseFloat(viewport.attr("x"));
-            let y = parseFloat(viewport.attr("y"));
-            viewport.attr("width", 200 / zoomLevel)
-                    .attr("height", 150 / zoomLevel);
-            d3.select("#graph-svg").attr("viewBox", `${x * zoomLevel} ${y * zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`);
-        }
-
-        document.addEventListener("keydown", function(event) {
-            if (event.shiftKey && event.key === "+") {
-                zoomIn();
-            } else if (event.shiftKey && event.key === "-") {
-                zoomOut();
-            }
-        });
-
-        document.addEventListener("wheel", function(event) {
-            if (event.shiftKey) {
-                if (event.deltaY < 0) {
-                    zoomIn();
-                } else {
-                    zoomOut();
-                }
-            }
-        });
     </script>
     <script id="query-result" type="application/json">{{ query_result|safe }}</script>
     {% endif %}
