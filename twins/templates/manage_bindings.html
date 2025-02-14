@@ -1,0 +1,57 @@
+<!-- filepath: /mnt/c/Users/lucas/OneDrive/Documentos/workspace/middts-client/twins/templates/manage_bindings.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manage Bindings{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Manage Bindings</h2>
+
+    <form method="POST" class="mb-4">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="dt_property_id">Digital Twin Property</label>
+            <select id="dt_property_id" name="dt_property_id" class="form-control">
+                {% for dt_property in dt_properties %}
+                <option value="{{ dt_property.id }}">{{dt_property.instance}} - {{ dt_property.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="device_property_id">Device Property</label>
+            <select id="device_property_id" name="device_property_id" class="form-control">
+                {% for property in properties %}
+                <option value="{{ property.id }}">{{property.device}} - {{ property.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Binding</button>
+    </form>
+
+    <h3>Existing Bindings</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Digital Twin Property</th>
+                <th>Device Property</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for binding in bindings %}
+            <tr>
+                <td>{{ binding.dt_property.name }}</td>
+                <td>{{ binding.device_property.name }}</td>
+                <td>
+                    <form method="POST" action="{% url 'delete_binding' binding.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

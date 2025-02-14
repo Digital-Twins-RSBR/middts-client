@@ -15,19 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
-from twins.views import dtexplorer, index, list_instances, list_systems, list_dtdlmodels, update_property
-from twins.api import api
+from django.urls import path, include
 
 urlpatterns = [
-    path("", index, name="index"),  # Página inicial
+    path("", include("twins.urls")),  # Inclui as URLs do app twins
     path('admin/', admin.site.urls),
-    path("api/", api.urls),
-    path("systems/", list_systems, name="list_systems"),
-    path("dtdlmodels/", list_dtdlmodels, name="list_dtdlmodels"),
-    path("instances/", list_instances, name="list_instances"),
-    
-    # path("instances/<int:instance_id>/properties/<int:property_id>/update/", update_property, name="update_property"),
-    path("instances/<int:instance_id>/properties/update/", update_property, name="update_property"),
-    path("dtexplorer/", dtexplorer, name="dtexplorer"),
 ]

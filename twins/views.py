@@ -3,9 +3,9 @@ from django.conf import settings
 import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, get_object_or_404
-from .models import SystemContext, DigitalTwinInstance, DigitalTwinInstanceRelationship, DigitalTwinProperty, ModelRelationship, DTDLModel
-
+from django.shortcuts import redirect, render, get_object_or_404
+from .models import DeviceProperty, SystemContext, DigitalTwinInstance, DigitalTwinInstanceRelationship, DigitalTwinProperty, ModelRelationship, DTDLModel, Device, DigitalTwinDevicePropertyBinding
+from django.contrib import messages
 
 
 def index(request):
@@ -206,3 +206,39 @@ def dtexplorer(request):
         "query_result": json.dumps(formatted_data) if query_result else None,
         "error_message": error_message
     })
+
+def manage_bindings(request):
+    dt_properties = DigitalTwinProperty.objects.filter(digitaltwindevicepropertybinding__isnull=True)
+    properties = DeviceProperty.objects.filter(digitaltwindevicepropertybinding__isnull=True)
+    bindings = DigitalTwinDevicePropertyBinding.objects.all()
+
+    if request.method == "POST":
+        dt_property_id = request.POST.get("dt_property_id")
+        property_id = request.POST.get("device_id")
+
+        dt_property = get_object_or_404(DigitalTwinProperty, id=dt_property_id)
+        property = get_object_or_404(DeviceProperty, id=property_id)
+
+        binding, created = DigitalTwinDevicePropertyBinding.objects.update_or_create(
+            dt_property=dt_property,
+            device_property=property,
+        )
+
+        if created:
+            messages.success(request, "Binding created successfully.")
+        else:
+            messages.success(request, "Binding updated successfully.")
+
+    return render(request, "manage_bindings.html", {
+        "dt_properties": dt_properties,
+        "properties": properties,
+        "bindings": bindings,
+    })
+
+@csrf_exempt
+def delete_binding(request, binding_id):
+    if request.method == "POST":
+        binding = get_object_or_404(DigitalTwinDevicePropertyBinding, id=binding_id)
+        binding.delete()
+        messages.success(request, "Binding deleted successfully.")
+    return redirect("manage_bindings")

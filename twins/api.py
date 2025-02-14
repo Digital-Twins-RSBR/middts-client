@@ -2,7 +2,7 @@ import requests
 from ninja import NinjaAPI
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from twins.models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding
+from twins.models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDevicePropertyBinding
 
 api = NinjaAPI()
 
@@ -146,8 +146,8 @@ def list_instances(request, system_id: int):
 
 # Associar Gêmeo Digital a um Dispositivo
 @api.post("/systems/{system_id}/instances/{dtinstance_id}/bind/")
-def bind_dtinstance_device(request, system_id: int, dtinstance_id: int, device_id: int, property_mapping: dict):
-    payload = {"device_property_id": device_id, "property_mapping": property_mapping}
+def bind_dtinstance_device(request, system_id: int, dtinstance_id: int, device_id: int):
+    payload = {"device_property_id": device_id}
     response = requests.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/{dtinstance_id}/bind/", json=payload)
     return response.json()
 

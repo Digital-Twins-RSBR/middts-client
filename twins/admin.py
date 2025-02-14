@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import path
 import requests
-from .models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDeviceBinding, ModelElement, ModelRelationship
+from .models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDevicePropertyBinding, ModelElement, ModelRelationship, DeviceType, DeviceProperty
 
 
 @admin.action(description="Importar Systems do Middts")
@@ -189,5 +189,171 @@ class ModelRelationshipAdmin(admin.ModelAdmin):
     search_fields = ("source_model__name", "target_model__name", "name")
 
 
-admin.site.register(Device)
-admin.site.register(DigitalTwinDeviceBinding)
+@admin.action(description="Importar Devices do Middts")
+def importar_devices_do_middts(modeladmin, request, queryset):
+    response = requests.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
+    if response.status_code == 200:
+        devices = response.json()
+        for device in devices:
+            device_type, _ = DeviceType.objects.update_or_create(
+                middts_id=device["device_type"]["id"],
+                defaults={"name": device["device_type"]["name"], "description": device["device_type"].get("description", "")},
+            )
+            device_instance, created = Device.objects.update_or_create(
+                middts_id=device["id"],
+                defaults={"device_type": device_type, "identifier": device["identifier"], "name": device["name"], "status": device["status"], "user": request.user},
+            )
+            if created:
+                modeladmin.message_user(request, f"Importado: {device['name']}")
+            else:
+                modeladmin.message_user(request, f"Atualizado: {device['name']}")
+
+            for prop in device["properties"]:
+                DeviceProperty.objects.update_or_create(
+                    device_type=device_type,
+                    name=prop["name"],
+                    defaults={"data_type": prop["data_type"], "middts_id": prop["id"]},
+                )
+    else:
+        modeladmin.message_user(request, "Erro ao importar Devices", level="error")
+
+
+
+
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    list_display = ("name", "middts_id", "device_type")
+    readonly_fields = ("name", "middts_id")
+    actions = [importar_devices_do_middts]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-devices/', self.admin_site.admin_view(self.import_devices), name='import-devices'),
+        ]
+        return custom_urls + urls
+
+
+    def import_devices(self, request):
+        response = requests.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
+        if response.status_code == 200:
+            devices = response.json()
+            for device in devices:
+                device_type = None
+                device_type_id = device["type_id"]
+                if device_type_id:
+                    device_type, _ = DeviceType.objects.update_or_create(
+                        middts_id=device_type_id,
+                        defaults={"name": device["type_name"],},
+                    )
+                device_instance, created = Device.objects.update_or_create(
+                    middts_id=device["id"],
+                    defaults={"device_type": device_type, "identifier": device["identifier"], "name": device["name"], "status": device["status"]},
+                )
+                if created:
+                    messages.success(request, f"Importado: {device['name']}")
+                else:
+                    messages.success(request, f"Atualizado: {device['name']}")
+
+                for prop in device["properties"]:
+                    DeviceProperty.objects.update_or_create(
+                        device=device_instance,
+                        name=prop["name"],
+                        defaults={"data_type": prop["type"], "middts_id": prop["id"]},
+                    )
+        else:
+            messages.error(request, "Erro ao importar Devices", level="error")
+
+        return redirect("..")
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["import_devices_url"] = "import-devices/"
+        return super().changelist_view(request, extra_context=extra_context)
+    
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DeviceType)
+class DeviceTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "middts_id")
+    readonly_fields = ("name", "middts_id")
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DeviceProperty)
+class DevicePropertyAdmin(admin.ModelAdmin):
+    list_display = ("name", "data_type", "middts_id", 'device')
+    readonly_fields = ("name", "data_type", "middts_id")
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DigitalTwinDevicePropertyBinding)
+class DigitalTwinDevicePropertyBindingAdmin(admin.ModelAdmin):
+    list_display = ("dt_property", "device_property")
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-bindings/', self.admin_site.admin_view(self.import_bindings), name='import-bindings'),
+        ]
+        return custom_urls + urls
+    
+    def import_bindings(self, request):
+        for system_id in SystemContext.objects.values_list("middts_id", flat=True):
+            response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/properties/connected/")
+            if response.status_code == 200:
+                bindings = response.json()
+                for binding in bindings:
+                    import ipdb; ipdb.set_trace()
+                    dt_instance = DigitalTwinInstance.objects.get(middts_id=binding["dtinstance"])
+                    dt_property = DigitalTwinProperty.objects.get(middts_id=binding["property"], instance=dt_instance)
+                    device_property = DeviceProperty.objects.get(middts_id=binding["device_property"])
+                    DigitalTwinDevicePropertyBinding.objects.update_or_create(
+                        dt_property=dt_property,
+                        device_property=device_property,
+                    )
+                messages.success(request, "Bindings importados com sucesso.")
+            else:
+                messages.error(request, "Erro ao importar Bindings.")
+        return redirect("..")
+    
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["import_bindings_url"] = "import-bindings/"
+        return super().changelist_view(request, extra_context=extra_context)

@@ -274,16 +274,41 @@ class Device(models.Model):
     identifier = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
     status = models.CharField(max_length=50, choices=[("active", "Ativo"), ("inactive", "Inativo")])
-    user = models.ForeignKey("auth.User", on_delete=models.CASCADE)
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Adicionando o campo middts_id
+    device_type = models.ForeignKey("DeviceType", null=True, on_delete=models.CASCADE, related_name="devices")
 
     def __str__(self):
         return self.name
 
 
-class DigitalTwinDeviceBinding(models.Model):
-    dt_instance = models.ForeignKey(DigitalTwinInstance, on_delete=models.CASCADE)
-    device = models.ForeignKey(Device, on_delete=models.CASCADE)
-    property_mapping = models.JSONField()  # Mapeia propriedades do DT para do dispositivo
+class DeviceType(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
 
     def __str__(self):
-        return f"{self.dt_instance.name} -> {self.device.name}"
+        return self.name
+
+
+class DeviceProperty(models.Model):
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="properties")
+    name = models.CharField(max_length=255)
+    data_type = models.CharField(max_length=255)
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+
+    class Meta:
+        unique_together = ("device", "name")
+
+    def __str__(self):
+        return f"{self.device.name} - {self.name}"
+    
+
+class DigitalTwinDevicePropertyBinding(models.Model):
+    dt_property = models.ForeignKey(DigitalTwinProperty, on_delete=models.CASCADE)
+    device_property = models.ForeignKey(DeviceProperty, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.dt_property.instance.name} -> {self.device_property.device.name}"
+    
+    class Meta:
+        unique_together = ("dt_property", "device_property")
+
