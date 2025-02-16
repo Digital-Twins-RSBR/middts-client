@@ -41,8 +41,8 @@
         <tbody>
             {% for binding in bindings %}
             <tr>
-                <td>{{ binding.dt_property.name }}</td>
-                <td>{{ binding.device_property.name }}</td>
+                <td>{{ binding.dt_property.name }} of {{ binding.dt_property.instance }}</td>
+                <td>{{ binding.device_property.name }} of {{ binding.device_property.device }}</td>
                 <td>
                     <form method="POST" action="{% url 'delete_binding' binding.id %}">
                         {% csrf_token %}
