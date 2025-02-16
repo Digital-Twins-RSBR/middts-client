@@ -240,13 +240,14 @@ def dtexplorer(request):
     formatted_data["links"] = [link for link in formatted_data["links"] if link["source"] in known_node_ids and link["target"] in known_node_ids]
 
     print(formatted_data)
+    print(query_result)
     return render(request, "dtexplorer.html", {
         "systems": systems,
         "selected_system": selected_system,
         "query_result_json": json.dumps(query_result) if query_result else None,
         "query_result": json.dumps(formatted_data) if query_result else None,
         "error_message": error_message,
-        "no_results": not query_result or not formatted_data["nodes"]
+        "no_results": not query_result
     })
 
 def manage_bindings(request):

@@ -46,9 +46,28 @@
     {% if query_result and not no_results %}
     <h3>Resultado da Consulta</h3>
     <div class="container-fluid mt-5 d-flex">
+        <!-- Painel Lateral Esquerdo -->
+        <div id="left-panel">
+            <button id="toggle-graph-btn" class="btn btn-dark" onclick="showGraph()">
+                <span class="menu-icon">&#128200;</span> <!-- Ícone de gráfico -->
+            </button>
+            <button id="toggle-text-btn" class="btn btn-dark" onclick="showText()">
+                <span class="menu-icon">&#128196;</span> <!-- Ícone de texto -->
+            </button>
+            <button id="toggle-json-btn" class="btn btn-dark" onclick="showJson()">
+                <span class="menu-icon">&#123;}</span> <!-- Ícone de JSON -->
+            </button>
+        </div>
+
         <!-- Container do Grafo -->
         <div id="graph-container-wrapper">
             <div id="graph-container"></div>
+            <div id="text-container" style="display: none;">
+                <pre id="text-content"></pre>
+            </div>
+            <div id="json-container" style="display: none;">
+                <pre id="json-content"></pre>
+            </div>
             <div id="zoom-controls">
                 <button onclick="graphComponent.zoomIn()">+</button>
                 <button onclick="graphComponent.zoomOut()">-</button>
@@ -78,7 +97,41 @@
             height: calc(100vh - 60px);
         }
 
-        /* Painel lateral fixo */
+        /* Painel lateral esquerdo */
+        #left-panel {
+            width: 60px;
+            background: white;
+            box-shadow: 2px 0px 5px rgba(0,0,0,0.2);
+            padding: 20px;
+            overflow-y: auto;
+            height: 100%;
+            transition: width 0.3s;
+            position: relative;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #left-panel button {
+            margin-bottom: 10px;
+            background-color: #343a40;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .menu-icon {
+            font-size: 24px;
+        }
+
+        /* Painel lateral direito */
         #info-panel {
             width: 300px;
             background: white;
@@ -132,6 +185,24 @@
             width: 100%;
             height: 100%;
             position: relative;
+        }
+
+        #text-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #f5f5f5;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        #json-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #f5f5f5;
+            padding: 20px;
+            overflow: auto;
         }
 
         #graph-svg {
@@ -191,8 +262,11 @@
         let graphComponent;
 
         document.addEventListener("DOMContentLoaded", function () {
-            const data = JSON.parse(document.getElementById('query-result').textContent);
-            graphComponent = new GraphComponent("graph-container", data);
+            const formattedData = JSON.parse(document.getElementById('query-result').textContent);
+            const rawData = JSON.parse(document.getElementById('query-result-json').textContent);
+            graphComponent = new GraphComponent("graph-container", formattedData);
+            document.getElementById("text-content").textContent = JSON.stringify(formattedData, null, 2);
+            document.getElementById("json-content").textContent = JSON.stringify(rawData, null, 2);
         });
 
         function togglePanel() {
@@ -209,8 +283,27 @@
                 toggleBtn.innerHTML = '<span class="menu-icon">&#9776;</span>';
             }
         }
+
+        function showGraph() {
+            document.getElementById("graph-container").style.display = "block";
+            document.getElementById("text-container").style.display = "none";
+            document.getElementById("json-container").style.display = "none";
+        }
+
+        function showText() {
+            document.getElementById("graph-container").style.display = "none";
+            document.getElementById("text-container").style.display = "block";
+            document.getElementById("json-container").style.display = "none";
+        }
+
+        function showJson() {
+            document.getElementById("graph-container").style.display = "none";
+            document.getElementById("text-container").style.display = "none";
+            document.getElementById("json-container").style.display = "block";
+        }
     </script>
     <script id="query-result" type="application/json">{{ query_result|safe }}</script>
+    <script id="query-result-json" type="application/json">{{ query_result_json|safe }}</script>
     {% endif %}
 </div>
 {% endblock %}
