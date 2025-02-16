@@ -25,6 +25,7 @@
         <div class="mb-3">
             <label for="cypher-query" class="form-label"><strong>Consulta Cypher:</strong></label>
             <textarea name="cypher_query" id="cypher-query" class="form-control" rows="4">{{ request.POST.cypher_query }}</textarea>
+            <small class="form-text text-muted">Exemplo de consulta: <code>MATCH (n) RETURN n LIMIT 25</code> - Esta consulta retorna os primeiros 25 nós do banco de dados.</small>
         </div>
         <button type="submit" class="btn btn-primary">Executar Consulta</button>
     </form>
@@ -36,7 +37,13 @@
     </div>
     {% endif %}
 
-    {% if query_result %}
+    {% if no_results %}
+    <div class="alert alert-warning" role="alert">
+        Nenhum resultado encontrado para a consulta.
+    </div>
+    {% endif %}
+
+    {% if query_result and not no_results %}
     <h3>Resultado da Consulta</h3>
     <div class="container-fluid mt-5 d-flex">
         <!-- Container do Grafo -->

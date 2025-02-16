@@ -157,7 +157,7 @@ def dtexplorer(request):
                 # Segunda consulta para buscar relacionamentos
                 node_ids = [node["identity"] for result in query_result["results"] for node in result if "identity" in node]
                 if node_ids:
-                    relationships_query = f"MATCH (a)-[r]->(b) WHERE id(a) IN {node_ids} OR id(b) IN {node_ids} RETURN r"
+                    relationships_query = f"MATCH (a)-[relationships_filter]->(b) WHERE id(a) IN {node_ids} OR id(b) IN {node_ids} RETURN relationships_filter"
                     response = requests.post(
                         f"{settings.MIDDTS_API_URL}/orchestrator/systems/{selected_system.middts_id}/instances/query/",
                         json={"query": relationships_query}
@@ -173,38 +173,80 @@ def dtexplorer(request):
         "nodes": [],
         "links": []
     }
+    node_ids_set = set()
+    link_ids_set = set()
     if query_result:
         for result in query_result["results"]:
             for element in result:
                 if "identity" in element:
-                    formatted_data["nodes"].append({
-                        "id": element["identity"],
-                        "labels": element["labels"],
-                        "properties": element["properties"]
-                    })
-                elif "start" in element and "end" in element:
-                    formatted_data["links"].append({
-                        "source": element["start"],
-                        "target": element["end"],
-                        "type": element["type"],
-                        "properties": element["properties"]
-                    })
-        if "relationships" in query_result:
-            for result in query_result["relationships"]:
-                for element in result:
-                    if "start_node" in element and "end_node" in element:
+                    if element["identity"] not in node_ids_set:
+                        print(f"{element['identity']} - identity")
+                        formatted_data["nodes"].append({
+                            "id": element["identity"],
+                            "labels": element["labels"],
+                            "properties": element["properties"]
+                        })
+                        node_ids_set.add(element["identity"])
+                elif "start_node" in element and "end_node" in element:
+                    link_id = (element["start_node"], element["end_node"], element["type"])
+                    if link_id not in link_ids_set:
+                        print(f"{element['start_node']} - > {element['end_node']}")
                         formatted_data["links"].append({
                             "source": element["start_node"],
                             "target": element["end_node"],
                             "type": element["type"],
                             "properties": element["properties"]
                         })
+                        link_ids_set.add(link_id)
+                elif "elementId" in element:
+                    if element["elementId"] not in node_ids_set:
+                        print(f"{element['elementId']} - elementId")
+                        formatted_data["nodes"].append({
+                            "id": element["elementId"],
+                            "labels": element["labels"],
+                            "properties": element["properties"]
+                        })
+                        node_ids_set.add(element["elementId"])
+                elif "start" in element and "end" in element:
+                    link_id = (element["start"], element["end"], element["type"])
+                    if link_id not in link_ids_set:
+                        print(f"{element['start']} -> {element['end']} : {element['type']}")
+                        formatted_data["links"].append({
+                            "source": element["start"],
+                            "target": element["end"],
+                            "type": element["type"],
+                            "properties": element["properties"]
+                        })
+                        link_ids_set.add(link_id)
+        if "relationships" in query_result:
+            for result in query_result["relationships"]:
+                for element in result:
+                    if "start_node" in element and "end_node" in element:
+                        link_id = (element["start_node"], element["end_node"], element["type"])
+                        if link_id not in link_ids_set:
+                            print(f"{element['start_node']} -> {element['end_node']} : {element['type']}")
+                            formatted_data["links"].append({
+                                "source": element["start_node"],
+                                "target": element["end_node"],
+                                "type": element["type"],
+                                "properties": element["properties"]
+                            })
+                            link_ids_set.add(link_id)
+                    else:
+                        print("start_node and end_node not in element")
 
+    # Verificação adicional para remover relacionamentos que referenciam nós desconhecidos
+    known_node_ids = node_ids_set
+    formatted_data["links"] = [link for link in formatted_data["links"] if link["source"] in known_node_ids and link["target"] in known_node_ids]
+
+    print(formatted_data)
     return render(request, "dtexplorer.html", {
         "systems": systems,
         "selected_system": selected_system,
+        "query_result_json": json.dumps(query_result) if query_result else None,
         "query_result": json.dumps(formatted_data) if query_result else None,
-        "error_message": error_message
+        "error_message": error_message,
+        "no_results": not query_result or not formatted_data["nodes"]
     })
 
 def manage_bindings(request):
