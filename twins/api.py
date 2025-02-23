@@ -6,13 +6,12 @@ from twins.models import DigitalTwinInstanceRelationship, DigitalTwinProperty, S
 
 api = NinjaAPI()
 
-
 ### ============================
-###  API para Importar Systems
+###  API to Import Systems
 ### ============================
 
 @api.post("/systems/import/")
-def importar_systems(request):
+def import_systems(request):
     response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/")
     if response.status_code == 200:
         systems = response.json()
@@ -21,16 +20,16 @@ def importar_systems(request):
                 middts_id=system["id"],
                 defaults={"name": system["name"], "description": system.get("description", "")},
             )
-        return {"message": "Importação de Systems concluída com sucesso!"}
-    return {"error": "Erro ao importar Systems"}, response.status_code
+        return {"message": "Systems import completed successfully!"}
+    return {"error": "Error importing Systems"}, response.status_code
 
 
 ### ============================
-###  API para Importar Modelos DTDL
+###  API to Import DTDL Models
 ### ============================
 
 @api.post("/dtdlmodels/import/")
-def importar_dtdlmodels(request):
+def import_dtdlmodels(request):
     systems = SystemContext.objects.filter(middts_id__isnull=False)
     for system in systems:
         response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system.middts_id}/dtdlmodels/")
@@ -41,27 +40,27 @@ def importar_dtdlmodels(request):
                     middts_id=model["id"],
                     defaults={"system": system, "name": model["name"], "specification": model["specification"]},
                 )
-    return {"message": "Importação de Modelos DTDL concluída com sucesso!"}
+    return {"message": "DTDL Models import completed successfully!"}
 
 
 ### ============================
-###  API para Importar Instâncias de Gêmeos Digitais
+###  API to Import Digital Twin Instances
 ### ============================
 
 @api.post("/instances/import/")
-def importar_instances(request):
+def import_instances(request):
     systems = SystemContext.objects.filter(middts_id__isnull=False)
     for system in systems:
         response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system.middts_id}/instances/")
         if response.status_code == 200:
             instances = response.json()
             for instance in instances:
-                # Nome baseado no modelo
+                # Name based on the model
                 model_middts_id = instance.get('model')
                 if model_middts_id:
                     dtdlmodel = DTDLModel.objects.filter(middts_id=model_middts_id).first()
-                    instance_name = f"{dtdlmodel.name} - Instância {instance['id']}"
-                    # Criar ou atualizar a instância
+                    instance_name = f"{dtdlmodel.name} - Instance {instance['id']}"
+                    # Create or update the instance
                     dt_instance, created = DigitalTwinInstance.objects.update_or_create(
                         middts_id=instance["id"],
                         defaults={
@@ -71,7 +70,7 @@ def importar_instances(request):
                         },
                     )
 
-                    # Criar os relacionamentos da instância com outros gêmeos digitais
+                    # Create the instance relationships with other digital twins
                     for relationship in instance.get("sourcerelationships", []):
                         target_instance = DigitalTwinInstance.objects.filter(middts_id=relationship["target_instance"]).first()
 
@@ -82,7 +81,7 @@ def importar_instances(request):
                                 defaults={"relationship": relationship["relationship_name"]},
                             )
 
-                    # Criar as propriedades da instância
+                    # Create the instance properties
                     for prop in instance.get("digitaltwininstanceproperty_set", []):
                         DigitalTwinProperty.objects.update_or_create(
                             instance=dt_instance,
@@ -95,9 +94,9 @@ def importar_instances(request):
                             },
                         )
 
-    return {"message": "Importação de Instâncias concluída com sucesso!"}
+    return {"message": "Instances import completed successfully!"}
 
-# Criar um novo sistema
+# Create a new system
 @api.post("/systems/")
 def create_system(request, name: str, description: str = None):
     payload = {"name": name, "description": description}
@@ -107,14 +106,14 @@ def create_system(request, name: str, description: str = None):
     return response.text, response.status_code
 
 
-# Listar sistemas
+# List systems
 @api.get("/systems/")
 def list_systems(request):
     response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/")
     return response.json()
 
 
-# Criar um modelo DTDL
+# Create a DTDL model
 @api.post("/systems/{system_id}/dtdlmodels/")
 def create_dtdlmodel(request, system_id: int, name: str, specification: dict):
     payload = {"name": name, "specification": specification}
@@ -122,14 +121,14 @@ def create_dtdlmodel(request, system_id: int, name: str, specification: dict):
     return response.json()
 
 
-# Listar modelos DTDL
+# List DTDL models
 @api.get("/systems/{system_id}/dtdlmodels/")
 def list_dtdlmodels(request, system_id: int):
     response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/dtdlmodels/")
     return response.json()
 
 
-# Criar uma instância de Gêmeo Digital
+# Create a Digital Twin instance
 @api.post("/systems/{system_id}/instances/")
 def create_instance(request, system_id: int, dtdl_model_id: int, name: str):
     payload = {"dtdl_model_id": dtdl_model_id, "name": name}
@@ -137,14 +136,14 @@ def create_instance(request, system_id: int, dtdl_model_id: int, name: str):
     return response.json()
 
 
-# Listar instâncias
+# List instances
 @api.get("/systems/{system_id}/instances/")
 def list_instances(request, system_id: int):
     response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/")
     return response.json()
 
 
-# Associar Gêmeo Digital a um Dispositivo
+# Bind Digital Twin instance to a Device
 @api.post("/systems/{system_id}/instances/{dtinstance_id}/bind/")
 def bind_dtinstance_device(request, system_id: int, dtinstance_id: int, device_id: int):
     payload = {"device_property_id": device_id}
@@ -152,8 +151,7 @@ def bind_dtinstance_device(request, system_id: int, dtinstance_id: int, device_i
     return response.json()
 
 
-
-# Atualizar uma propriedade causal de um Gêmeo Digital
+# Update a causal property of a Digital Twin
 @api.put("/systems/{system_id}/instances/{dtinstance_id}/properties/{property_id}/")
 def update_causal_property(request, system_id: int, dtinstance_id: int, property_id: int, value: str):
     payload = {"value": value}
@@ -161,7 +159,7 @@ def update_causal_property(request, system_id: int, dtinstance_id: int, property
     return response.json()
 
 
-# Executar consulta Cypher no Neo4j
+# Execute Cypher query in Neo4j
 @api.post("/systems/{system_id}/instances/query/")
 def execute_cypher_query(request, system_id: int, query: str):
     payload = {"query": query}

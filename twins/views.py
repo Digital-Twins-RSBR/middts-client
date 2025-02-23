@@ -18,19 +18,19 @@ def list_systems(request):
 
 def build_hierarchy(models, relationships):
     """
-    Organiza os Modelos DTDL em uma estrutura de árvore hierárquica.
-    O modelo raiz é aquele que não aparece como `target_model` de nenhum relacionamento.
+    Organizes DTDL Models into a hierarchical tree structure.
+    The root model is the one that does not appear as `target_model` in any relationship.
     """
     hierarchy = {}
 
-    # Inicializa todos os modelos sem pais
+    # Initialize all models without parents
     for model in models:
         hierarchy[model.id] = {
             "model": model,
             "children": []
         }
 
-    # Associa filhos aos pais com base nos relacionamentos
+    # Associate children with parents based on relationships
     for relation in relationships:
         parent_id = relation.source_model.id
         child_id = relation.target_model.id
@@ -38,7 +38,7 @@ def build_hierarchy(models, relationships):
         if parent_id in hierarchy and child_id in hierarchy:
             hierarchy[parent_id]["children"].append(hierarchy[child_id])
 
-    # Retorna apenas os nós raiz (que não são filhos de ninguém)
+    # Return only the root nodes (which are not children of anyone)
     roots = [node for node in hierarchy.values() if not any(node["model"].id == rel.target_model.id for rel in relationships)]
     return roots
 
@@ -98,14 +98,14 @@ def list_instances(request):
     return render(request, "instances.html", {
         "systems": systems,
         "selected_system": selected_system,
-        "instances_json": json.dumps(instances_list),  # Passamos JSON puro para o template
-        "relationships_json": json.dumps(relationships_list)  # JSON puro para o template
+        "instances_json": json.dumps(instances_list),  # Pass raw JSON to the template
+        "relationships_json": json.dumps(relationships_list)  # Raw JSON to the template
     })
 
 @csrf_exempt
 def update_property(request, instance_id):
     """
-    Atualiza todas as propriedades editáveis de um Gêmeo Digital.
+    Updates all editable properties of a Digital Twin.
     """
     if request.method == "POST":
         data = json.loads(request.body)
@@ -130,9 +130,9 @@ def update_property(request, instance_id):
             except Exception as e:
                 return JsonResponse({"error": str(e)}, status=400)
 
-        return JsonResponse({"message": "Propriedades atualizadas", "updated_properties": updated_properties}, status=200)
+        return JsonResponse({"message": "Properties updated", "updated_properties": updated_properties}, status=200)
 
-    return JsonResponse({"error": "Método não permitido"}, status=405)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 
 def dtexplorer(request):
@@ -154,7 +154,7 @@ def dtexplorer(request):
                 )
                 response.raise_for_status()
                 query_result = response.json()
-                # Segunda consulta para buscar relacionamentos
+                # Second query to fetch relationships
                 node_ids = [node["identity"] for result in query_result["results"] for node in result if "identity" in node]
                 if node_ids:
                     relationships_query = f"MATCH (a)-[relationships_filter]->(b) WHERE id(a) IN {node_ids} OR id(b) IN {node_ids} RETURN relationships_filter"
@@ -168,7 +168,7 @@ def dtexplorer(request):
             except requests.RequestException as e:
                 error_message = str(e)
 
-    # Formatar os dados para o componente GraphComponent
+    # Format the data for the GraphComponent
     formatted_data = {
         "nodes": [],
         "links": []
@@ -235,7 +235,7 @@ def dtexplorer(request):
                     else:
                         print("start_node and end_node not in element")
 
-    # Verificação adicional para remover relacionamentos que referenciam nós desconhecidos
+    # Additional verification to remove relationships that reference unknown nodes
     known_node_ids = node_ids_set
     formatted_data["links"] = [link for link in formatted_data["links"] if link["source"] in known_node_ids and link["target"] in known_node_ids]
 

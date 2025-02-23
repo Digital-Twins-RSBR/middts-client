@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Sistemas Cadastrados{% endblock %}
+{% block title %}Registered Systems{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2 class="text-center mb-4">Sistemas Cadastrados</h2>
+    <h2 class="text-center mb-4">Registered Systems</h2>
 
     <div class="row">
         {% for system in systems %}
             {% include "components/systemcard.html" %}
         {% empty %}
-        <p class="text-center">Nenhum sistema cadastrado.</p>
+        <p class="text-center">No systems registered.</p>
         {% endfor %}
     </div>
 </div>

@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Modelos DTDL{% endblock %}
+{% block title %}DTDL Models{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2 class="text-center mb-4">Modelos DTDL Cadastrados</h2>
+    <h2 class="text-center mb-4">Registered DTDL Models</h2>
 
-    <!-- Filtro Dropdown -->
+    <!-- Dropdown Filter -->
     <form method="GET" class="mb-4">
-        <label for="system-filter" class="form-label"><strong>Filtrar por Sistema:</strong></label>
+        <label for="system-filter" class="form-label"><strong>Filter by System:</strong></label>
         <select name="system_id" id="system-filter" class="form-select" onchange="this.form.submit()">
-            <option value="">Todos os Sistemas</option>
+            <option value="">All Systems</option>
             {% for system in systems %}
                 <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
                     {{ system.name }}
@@ -19,7 +19,7 @@
         </select>
     </form>
 
-    <!-- Árvore Hierárquica -->
+    <!-- Hierarchical Tree -->
     <div class="tree-container">
         <ul class="tree">
             {% for node in hierarchy %}

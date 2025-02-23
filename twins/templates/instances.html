@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Gêmeos Digitais{% endblock %}
+{% block title %}Digital Twins{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2 class="text-center mb-4">Gêmeos Digitais</h2>
+    <h2 class="text-center mb-4">Digital Twins</h2>
 
-    <!-- Filtro por Sistema -->
+    <!-- Filter by System -->
     <form method="GET" class="mb-4 d-flex align-items-center">
-        <label for="system-filter" class="form-label me-2"><strong>Filtrar por Sistema:</strong></label>
+        <label for="system-filter" class="form-label me-2"><strong>Filter by System:</strong></label>
         <select name="system_id" id="system-filter" class="form-select me-3" onchange="this.form.submit()">
-            <option value="">Todos os Sistemas</option>
+            <option value="">All Systems</option>
             {% for system in systems %}
                 <option value="{{ system.id }}" {% if selected_system and selected_system.id == system.id %}selected{% endif %}>
                     {{ system.name }}
@@ -21,7 +21,7 @@
 </div>
 <div class="container-fluid mt-5 d-flex">
     
-    <!-- Container do Grafo -->
+    <!-- Graph Container -->
     <div id="graph-container-wrapper">
         <div id="graph-container">
             <svg id="graph-svg"></svg>
@@ -35,40 +35,40 @@
         </div>
     </div>
 
-    <!-- Painel Lateral de Informações -->
+    <!-- Information Sidebar -->
     <div id="info-panel">
         <button id="toggle-panel-btn" class="btn btn-dark" onclick="togglePanel()">
             <span class="menu-icon">&#9776;</span>
         </button>
         <div class="panel-header">
-            <h3 id="panel-title">Informações</h3>
+            <h3 id="panel-title">Information</h3>
         </div>
         <div id="panel-content-wrapper">
             <p id="panel-content">
                 {% if selected_system %}
                     <strong>{{ selected_system.name }}</strong> - {{ selected_system.description }}
                 {% else %}
-                    <strong>Exibindo todos os sistemas.</strong>
+                    <strong>Displaying all systems.</strong>
                 {% endif %}
             </p>
             <div id="non-editable-properties"></div>
             <div id="editable-properties-wrapper" style="display: none;">
-                <h4>Propriedades</h4>
+                <h4>Properties</h4>
                 <div id="dt-properties"></div>
             </div>
-            <button id="save-btn" class="btn btn-primary mt-3" onclick="saveProperties()" style="display: none;">Salvar Alterações</button>
+            <button id="save-btn" class="btn btn-primary mt-3" onclick="saveProperties()" style="display: none;">Save Changes</button>
         </div>
     </div>
 </div>
 
 <style>
-    /* Ajusta a visualização */
+    /* Adjust the view */
     .container-fluid {
         display: flex;
         height: calc(100vh - 60px);
     }
 
-    /* Painel lateral fixo */
+    /* Fixed sidebar */
     #info-panel {
         width: 400px;
         background: white;
@@ -80,14 +80,14 @@
         position: relative;
     }
 
-    /* Cabeçalho do painel */
+    /* Panel header */
     .panel-header {
         display: flex;
         align-items: center;
-        margin-left: 50px; /* Adiciona margem para o ícone */
+        margin-left: 50px; /* Adds margin for the icon */
     }
 
-    /* Botão de colapsar painel */
+    /* Collapse button */
     #toggle-panel-btn {
         position: absolute;
         top: 10px;
@@ -109,7 +109,7 @@
         font-size: 24px;
     }
 
-    /* Área do Grafo com Scroll */
+    /* Graph area with scroll */
     #graph-container-wrapper {
         flex: 1;
         overflow: auto;
@@ -168,7 +168,7 @@
         pointer-events: all;
     }
 </style>
-<!-- D3.js para a visualização do grafo -->
+<!-- D3.js for graph visualization -->
 <script src="https://d3js.org/d3.v7.min.js"></script>
 
 <script>
@@ -238,13 +238,13 @@
                 .attr("x", d => d.x + 5)
                 .attr("y", d => d.y + 5);
 
-            // Atualiza o minimapa
+            // Update the minimap
             minimapSvg.selectAll("*").remove();
             minimapSvg.append("g")
                 .attr("transform", `scale(${0.25})`)
                 .append(() => svg.node().cloneNode(true));
 
-            // Adiciona o retângulo semitransparente
+            // Add the semi-transparent rectangle
             viewport = minimapSvg.append("rect")
                 .attr("class", "minimap-viewport")
                 .attr("width", 200 / zoomLevel)
@@ -287,18 +287,18 @@
         function showPanel(data) {
             selectedInstanceId = data.id;
             document.getElementById("panel-title").innerText = data.name;
-            document.getElementById("panel-content").innerHTML = `<strong>Modelo:</strong> ${data.model}`;
+            document.getElementById("panel-content").innerHTML = `<strong>Model:</strong> ${data.model}`;
 
             let nonEditablePropertiesHTML = "";
             let propertiesHTML = "";
-            editableProperties = []; // Resetando propriedades editáveis
+            editableProperties = []; // Reset editable properties
 
             data.properties.forEach(prop => {
                 if (prop.can_edit) {
                     propertiesHTML += `<p>
                         <strong>${prop.name}:</strong>
                         <input type="text" id="prop-${prop.id}" value="${prop.value}">
-                        <span data-hint="${prop.causal ? 'Causal' : 'Não Causal'}">${prop.causal ? '⚠️' : ''}</span>
+                        <span data-hint="${prop.causal ? 'Causal' : 'Non-Causal'}">${prop.causal ? '⚠️' : ''}</span>
                     </p>`;
                     editableProperties.push({ id: prop.id, name: prop.name, value: prop.value });
                 } else {
@@ -317,7 +317,7 @@
 
     function saveProperties() {
         if (!selectedInstanceId) {
-            alert("Nenhum Gêmeo Digital selecionado.");
+            alert("No Digital Twin selected.");
             return;
         }
 
@@ -333,12 +333,12 @@
         }).then(response => {
             if (!response.ok) {
             return response.json().then(errorData => {
-                throw new Error(errorData.message || "Erro ao atualizar propriedades");
+                throw new Error(errorData.message || "Error updating properties");
             });
             }
             return response.json();
         })
-        .then(data => alert("Propriedades atualizadas com sucesso!"))
+        .then(data => alert("Properties updated successfully!"))
         .catch(error => alert(error.message));
     }
 

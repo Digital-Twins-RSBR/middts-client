@@ -7,8 +7,8 @@ import requests
 from .models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDevicePropertyBinding, ModelElement, ModelRelationship, DeviceType, DeviceProperty
 
 
-@admin.action(description="Importar Systems do Middts")
-def importar_systems_do_middts(modeladmin, request, queryset):
+@admin.action(description="Import Systems from Middts")
+def import_systems_from_middts(modeladmin, request, queryset):
     response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/")
     if response.status_code == 200:
         systems = response.json()
@@ -18,17 +18,17 @@ def importar_systems_do_middts(modeladmin, request, queryset):
                 defaults={"name": system["name"], "description": system.get("description", "")},
             )
             if created:
-                modeladmin.message_user(request, f"Importado: {system['name']}")
+                modeladmin.message_user(request, f"Imported: {system['name']}")
             else:
-                modeladmin.message_user(request, f"Atualizado: {system['name']}")
+                modeladmin.message_user(request, f"Updated: {system['name']}")
     else:
-        modeladmin.message_user(request, "Erro ao importar Systems", level="error")
+        modeladmin.message_user(request, "Error importing Systems", level="error")
 
 
 @admin.register(SystemContext)
 class SystemContextAdmin(admin.ModelAdmin):
     list_display = ("name", "description", "middts_id")
-    actions = [importar_systems_do_middts]
+    actions = [import_systems_from_middts]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -38,11 +38,11 @@ class SystemContextAdmin(admin.ModelAdmin):
         return custom_urls + urls
     
     def import_middts(self, request):
-        response = requests.post(f"{settings.SITE_URL}/api/systems/import/")  # Chamando API interna
+        response = requests.post(f"{settings.SITE_URL}/api/systems/import/")  # Calling internal API
         if response.status_code == 200:
-            messages.success(request, "Importação de Systems do Middts concluída com sucesso!")
+            messages.success(request, "Systems import from Middts completed successfully!")
         else:
-            messages.error(request, "Erro ao importar Systems do Middts.")
+            messages.error(request, "Error importing Systems from Middts.")
         return redirect("..")
 
     def changelist_view(self, request, extra_context=None):
@@ -51,8 +51,8 @@ class SystemContextAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
 
-@admin.action(description="Importar Modelos DTDL do Middts")
-def importar_modelos_dtdl_do_middts(modeladmin, request, queryset):
+@admin.action(description="Import DTDL Models from Middts")
+def import_dtdlmodels_from_middts(modeladmin, request, queryset):
     for dtdlmodel in queryset:
         response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/dtdlmodels/")
         if response.status_code == 200:
@@ -63,17 +63,17 @@ def importar_modelos_dtdl_do_middts(modeladmin, request, queryset):
                     defaults={"system": dtdlmodel.system, "name": model["name"], "specification": model["specification"]},
                 )
                 if created:
-                    modeladmin.message_user(request, f"Importado: {model['name']}")
+                    modeladmin.message_user(request, f"Imported: {model['name']}")
                 else:
-                    modeladmin.message_user(request, f"Atualizado: {model['name']}")
+                    modeladmin.message_user(request, f"Updated: {model['name']}")
         else:
-            modeladmin.message_user(request, f"Erro ao importar modelos do system {dtdlmodel.system.name}", level="error")
+            modeladmin.message_user(request, f"Error importing models from system {dtdlmodel.system.name}", level="error")
 
 
 @admin.register(DTDLModel)
 class DTDLModelAdmin(admin.ModelAdmin):
     list_display = ("name", "system", "middts_id", "dtmi")
-    actions = [importar_modelos_dtdl_do_middts]
+    actions = [import_dtdlmodels_from_middts]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -85,9 +85,9 @@ class DTDLModelAdmin(admin.ModelAdmin):
     def import_dtdlmodels(self, request):
         response = requests.post(f"{settings.SITE_URL}/api/dtdlmodels/import/")
         if response.status_code == 200:
-            messages.success(request, "Importação de Modelos DTDL concluída com sucesso!")
+            messages.success(request, "DTDL Models import completed successfully!")
         else:
-            messages.error(request, "Erro ao importar Modelos DTDL.")
+            messages.error(request, "Error importing DTDL Models.")
         return redirect("..")
 
     def changelist_view(self, request, extra_context=None):
@@ -96,8 +96,8 @@ class DTDLModelAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
 
-@admin.action(description="Importar Instâncias de Gêmeos Digitais do Middts")
-def importar_instances_do_middts(modeladmin, request, queryset):
+@admin.action(description="Import Digital Twin Instances from Middts")
+def import_instances_from_middts(modeladmin, request, queryset):
     for instance in queryset:
         response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{instance.model.system.middts_id}/instances/")
         if response.status_code == 200:
@@ -108,11 +108,11 @@ def importar_instances_do_middts(modeladmin, request, queryset):
                     defaults={"model": instance.model, "name": instance["name"], "properties": instance.get("properties", {})},
                 )
                 if created:
-                    modeladmin.message_user(request, f"Importado: {instance['name']}")
+                    modeladmin.message_user(request, f"Imported: {instance['name']}")
                 else:
-                    modeladmin.message_user(request, f"Atualizado: {instance['name']}")
+                    modeladmin.message_user(request, f"Updated: {instance['name']}")
 
-                # Importar relacionamentos
+                # Import relationships
                 relationships = instance.get("relationships", [])
                 for relationship in relationships:
                     target_instance, _ = DigitalTwinInstance.objects.update_or_create(
@@ -125,7 +125,7 @@ def importar_instances_do_middts(modeladmin, request, queryset):
                         defaults={"target_instance": target_instance},
                     )
         else:
-            modeladmin.message_user(request, f"Erro ao importar instâncias do modelo {instance.model.name}", level="error")
+            modeladmin.message_user(request, f"Error importing instances from model {instance.model.name}", level="error")
 
 class DigitalTwinPropertyInline(admin.TabularInline):
             model = DigitalTwinProperty
@@ -139,7 +139,7 @@ class DigitalTwinInstanceRelationshipInline(admin.TabularInline):
 @admin.register(DigitalTwinInstance)
 class DigitalTwinInstanceAdmin(admin.ModelAdmin):
     list_display = ("name", "model", "middts_id")
-    actions = [importar_instances_do_middts]
+    actions = [import_instances_from_middts]
     inlines = [DigitalTwinPropertyInline, DigitalTwinInstanceRelationshipInline]
 
     def get_urls(self):
@@ -152,16 +152,15 @@ class DigitalTwinInstanceAdmin(admin.ModelAdmin):
     def import_instances(self, request):
         response = requests.post(f"{settings.SITE_URL}/api/instances/import/")
         if response.status_code == 200:
-            messages.success(request, "Importação de Instâncias concluída com sucesso!")
+            messages.success(request, "Instances import completed successfully!")
         else:
-            messages.error(request, "Erro ao importar Instâncias.")
+            messages.error(request, "Error importing Instances.")
         return redirect("..")
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["import_instances_url"] = "import-instances/"
         return super().changelist_view(request, extra_context=extra_context)
-        
 
 
 @admin.register(DigitalTwinProperty)
@@ -189,8 +188,8 @@ class ModelRelationshipAdmin(admin.ModelAdmin):
     search_fields = ("source_model__name", "target_model__name", "name")
 
 
-@admin.action(description="Importar Devices do Middts")
-def importar_devices_do_middts(modeladmin, request, queryset):
+@admin.action(description="Import Devices from Middts")
+def import_devices_from_middts(modeladmin, request, queryset):
     response = requests.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
     if response.status_code == 200:
         devices = response.json()
@@ -204,9 +203,9 @@ def importar_devices_do_middts(modeladmin, request, queryset):
                 defaults={"device_type": device_type, "identifier": device["identifier"], "name": device["name"], "status": device["status"], "user": request.user},
             )
             if created:
-                modeladmin.message_user(request, f"Importado: {device['name']}")
+                modeladmin.message_user(request, f"Imported: {device['name']}")
             else:
-                modeladmin.message_user(request, f"Atualizado: {device['name']}")
+                modeladmin.message_user(request, f"Updated: {device['name']}")
 
             for prop in device["properties"]:
                 DeviceProperty.objects.update_or_create(
@@ -215,16 +214,14 @@ def importar_devices_do_middts(modeladmin, request, queryset):
                     defaults={"data_type": prop["data_type"], "middts_id": prop["id"]},
                 )
     else:
-        modeladmin.message_user(request, "Erro ao importar Devices", level="error")
-
-
+        modeladmin.message_user(request, "Error importing Devices", level="error")
 
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     list_display = ("name", "middts_id", "device_type")
     readonly_fields = ("name", "middts_id")
-    actions = [importar_devices_do_middts]
+    actions = [import_devices_from_middts]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -251,9 +248,9 @@ class DeviceAdmin(admin.ModelAdmin):
                     defaults={"device_type": device_type, "identifier": device["identifier"], "name": device["name"], "status": device["status"]},
                 )
                 if created:
-                    messages.success(request, f"Importado: {device['name']}")
+                    messages.success(request, f"Imported: {device['name']}")
                 else:
-                    messages.success(request, f"Atualizado: {device['name']}")
+                    messages.success(request, f"Updated: {device['name']}")
 
                 for prop in device["properties"]:
                     DeviceProperty.objects.update_or_create(
@@ -262,7 +259,7 @@ class DeviceAdmin(admin.ModelAdmin):
                         defaults={"data_type": prop["type"], "middts_id": prop["id"]},
                     )
         else:
-            messages.error(request, "Erro ao importar Devices", level="error")
+            messages.error(request, "Error importing Devices", level="error")
 
         return redirect("..")
 
@@ -340,7 +337,6 @@ class DigitalTwinDevicePropertyBindingAdmin(admin.ModelAdmin):
             if response.status_code == 200:
                 bindings = response.json()
                 for binding in bindings:
-                    import ipdb; ipdb.set_trace()
                     dt_instance = DigitalTwinInstance.objects.get(middts_id=binding["dtinstance"])
                     dt_property = DigitalTwinProperty.objects.get(middts_id=binding["property"], instance=dt_instance)
                     device_property = DeviceProperty.objects.get(middts_id=binding["device_property"])
@@ -348,9 +344,9 @@ class DigitalTwinDevicePropertyBindingAdmin(admin.ModelAdmin):
                         dt_property=dt_property,
                         device_property=device_property,
                     )
-                messages.success(request, "Bindings importados com sucesso.")
+                messages.success(request, "Bindings imported successfully.")
             else:
-                messages.error(request, "Erro ao importar Bindings.")
+                messages.error(request, "Error importing Bindings.")
         return redirect("..")
     
     def changelist_view(self, request, extra_context=None):

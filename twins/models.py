@@ -2,21 +2,21 @@ import requests
 from django.db import models
 from django.conf import settings
 
-MIDDTS_API_URL = settings.MIDDTS_API_URL  # Garante que a URL do Middts esteja configurada
+MIDDTS_API_URL = settings.MIDDTS_API_URL  # Ensure the Middts URL is configured
 
 class SystemContext(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Relacionamento com o System do Middts
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Relationship with the Middts System
 
     def save(self, *args, **kwargs):
         """
-        Sempre que um SystemContext for criado ou editado, ele será sincronizado com o Middts.
-        Se já existir um `middts_id`, ele será atualizado no Middts.
-        Se ainda não existir um `middts_id`, ele será criado no Middts.
+        Whenever a SystemContext is created or edited, it will be synchronized with Middts.
+        If there is already a `middts_id`, it will be updated in Middts.
+        If there is no `middts_id`, it will be created in Middts.
         """
-        super().save(*args, **kwargs)  # Salva primeiro no banco local
-        # Payload para envio ao Middts
+        super().save(*args, **kwargs)  # Save locally first
+        # Payload to send to Middts
         payload = {
             "name": self.name,
             "description": self.description
@@ -27,15 +27,15 @@ class SystemContext(models.Model):
         }
 
         if self.middts_id:
-            # Atualiza no Middts
+            # Update in Middts
             response = requests.put(f"{MIDDTS_API_URL}/orchestrator/systems/{self.middts_id}/", json=payload, headers=headers)
         else:
-            # Cria no Middts
+            # Create in Middts
             response = requests.post(f"{MIDDTS_API_URL}/orchestrator/systems/", json=payload, headers=headers)
             if response.status_code == 200:
                 data = response.json()
                 self.middts_id = data.get("id")
-                super().save(update_fields=["middts_id"])  # Atualiza o middts_id localmente após a criação
+                super().save(update_fields=["middts_id"])  # Update the local middts_id after creation
 
     def __str__(self):
         return self.name
@@ -45,23 +45,24 @@ class DTDLModel(models.Model):
     system = models.ForeignKey(SystemContext, on_delete=models.CASCADE, related_name="dtdl_models")
     name = models.CharField(max_length=255)
     specification = models.JSONField()
-    dtmi = models.CharField(max_length=255, unique=True, null=True, blank=True)  # Identificador único do modelo
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+    dtmi = models.CharField(max_length=255, unique=True, null=True, blank=True)  # Unique model identifier
+    middts_id = models.IntegerField(null=True, blank=True)  # Middts ID
 
-
+    class Meta:
+        unique_together = ("system", "middts_id")
 
     def save(self, *args, **kwargs):
         """
-        Sempre que um DTDLModel for criado ou editado, ele será sincronizado com o Middts.
-        Se já existir um `middts_id`, ele será atualizado no Middts.
-        Se ainda não existir um `middts_id`, ele será criado no Middts.
+        Whenever a DTDLModel is created or edited, it will be synchronized with Middts.
+        If there is already a `middts_id`, it will be updated in Middts.
+        If there is no `middts_id`, it will be created in Middts.
         """
-        # Extração do DTMI da specification
+        # Extract DTMI from the specification
         if not self.dtmi and "@id" in self.specification:
             self.dtmi = self.specification["@id"]
-        super().save(*args, **kwargs)  # Salva primeiro no banco local
+        super().save(*args, **kwargs)  # Save locally first
 
-        # Payload para envio ao Middts
+        # Payload to send to Middts
         payload = {
             "name": self.name,
             "specification": self.specification
@@ -72,14 +73,14 @@ class DTDLModel(models.Model):
         }
 
         if self.middts_id:
-            # Atualiza no Middts
+            # Update in Middts
             response = requests.put(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.system.middts_id}/dtdlmodels/{self.middts_id}/",
                 json=payload,
                 headers=headers
             )
         else:
-            # Cria no Middts
+            # Create in Middts
             response = requests.post(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.system.middts_id}/dtdlmodels/",
                 json=payload,
@@ -88,16 +89,16 @@ class DTDLModel(models.Model):
             if response.status_code == 200:
                 data = response.json()
                 self.middts_id = data.get("id")
-                super().save(update_fields=["middts_id"])  # Atualiza o middts_id localmente após a criação
+                super().save(update_fields=["middts_id"])  # Update the local middts_id after creation
 
-        # Extração automática de elementos e relacionamentos
+        # Automatic extraction of elements and relationships
         ModelElement.extract_elements_from_specification(self)
         self.extract_relationships()
         ModelRelationship.update_relationships()
 
     def extract_relationships(self):
         """
-        Extrai relacionamentos do JSON da `specification` e armazena no banco.
+        Extract relationships from the `specification` JSON and store them in the database.
         """
         data = self.specification
         if "contents" in data:
@@ -107,11 +108,11 @@ class DTDLModel(models.Model):
                     target_model = DTDLModel.objects.filter(dtmi__icontains=target_dtmi, system=self.system).first()
                     if target_model:
                         ModelRelationship.objects.update_or_create(
-                        source_model=self,
-                        target_model=target_model,
-                        name=item["name"],
-                        defaults={"target_dtmi": target_dtmi}  # Agora salvamos a relação com o DTMI alvo
-                    )
+                            source_model=self,
+                            target_model=target_model,
+                            name=item["name"],
+                            defaults={"target_dtmi": target_dtmi}  # Now we save the relationship with the target DTMI
+                        )
 
     def __str__(self):
         return f"{self.name} - {self.system.name}"
@@ -119,17 +120,17 @@ class DTDLModel(models.Model):
 
 class ModelElement(models.Model):
     """
-    Representa os elementos dentro de um Modelo DTDL.
-    Podem ser Propriedades, Comandos ou Relacionamentos.
+    Represents elements within a DTDL Model.
+    They can be Properties, Commands, or Relationships.
     """
     model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, related_name="elements")
     name = models.CharField(max_length=255)
     element_type = models.CharField(max_length=50)  # Ex: Property, Command, Relationship
-    data_type = models.CharField(max_length=255, blank=True, null=True)  # Tipo de dado (caso seja propriedade)
+    data_type = models.CharField(max_length=255, blank=True, null=True)  # Data type (if it's a property)
     target_model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, null=True, blank=True, related_name="target_elements")
 
     class Meta:
-        unique_together = ("model", "name", "element_type")  # Garante unicidade dos elementos dentro de um modelo
+        unique_together = ("model", "name", "element_type")  # Ensure uniqueness of elements within a model
 
     def __str__(self):
         return f"{self.name} ({self.element_type}) - {self.model.name}"
@@ -137,7 +138,7 @@ class ModelElement(models.Model):
     @staticmethod
     def extract_elements_from_specification(dtdl_model):
         """
-        Extrai elementos (propriedades, comandos, relacionamentos) da `specification` e os salva no banco.
+        Extract elements (properties, commands, relationships) from the `specification` and save them in the database.
         """
         data = dtdl_model.specification
         if "contents" in data:
@@ -159,19 +160,18 @@ class ModelElement(models.Model):
                     )
 
 
-
 class ModelRelationship(models.Model):
     """
-    Representa as relações entre os Modelos DTDL.
+    Represents relationships between DTDL Models.
     """
     source_model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, related_name="outgoing_relationships")
     target_model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, related_name="incoming_relationships", null=True, blank=True)
     name = models.CharField(max_length=255)
-    target_dtmi = models.CharField(max_length=255)  # Armazena o DTMI do modelo alvo antes de vinculá-lo corretamente
+    target_dtmi = models.CharField(max_length=255)  # Stores the target model's DTMI before linking it correctly
     element = models.ForeignKey("ModelElement", on_delete=models.CASCADE, null=True, blank=True, related_name="relationships")
 
     class Meta:
-        unique_together = ("source_model", "target_model", "name")  # Garante unicidade do relacionamento
+        unique_together = ("source_model", "target_model", "name")  # Ensure uniqueness of the relationship
 
     def __str__(self):
         return f"{self.source_model.name} -[{self.name}]-> {self.target_model.name if self.target_model else self.target_model_id}"
@@ -179,15 +179,15 @@ class ModelRelationship(models.Model):
     @staticmethod
     def update_relationships():
         """
-        Atualiza os relacionamentos após os modelos DTDL serem carregados,
-        garantindo que os ModelElements sejam vinculados corretamente.
+        Update relationships after DTDL models are loaded,
+        ensuring that ModelElements are linked correctly.
         """
         for relationship in ModelRelationship.objects.filter(target_model__isnull=True):
             target_model = DTDLModel.objects.filter(dtmi=relationship.target_dtmi).first()
 
             if target_model:
                 relationship.target_model = target_model
-                # Vincular ao elemento correto
+                # Link to the correct element
                 element = ModelElement.objects.filter(
                     model=relationship.source_model,
                     name=relationship.name,
@@ -203,7 +203,7 @@ class DigitalTwinInstance(models.Model):
     model = models.ForeignKey(DTDLModel, on_delete=models.CASCADE, related_name="instances")
     name = models.CharField(max_length=255)
     properties_json = models.JSONField(default=dict)
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     def __str__(self):
         return f"{self.name} ({self.model.name})"
@@ -211,22 +211,22 @@ class DigitalTwinInstance(models.Model):
 
 class DigitalTwinProperty(models.Model):
     """
-    Representa as propriedades dos Gêmeos Digitais.
+    Represents the properties of Digital Twins.
     """
     instance = models.ForeignKey(DigitalTwinInstance, on_delete=models.CASCADE, related_name="properties")
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255, blank=True, null=True)
     type = models.CharField(max_length=255, blank=True, null=True)
-    causal = models.BooleanField(default=False)  # Apenas propriedades causais podem ser editadas
+    causal = models.BooleanField(default=False)  # Only causal properties can be edited
 
     def __str__(self):
         return f"{self.instance.name} - {self.name}"
 
     def save(self, *args, **kwargs):
         """
-        Salva a propriedade e sincroniza com o Middts se for uma propriedade causal.
+        Save the property and synchronize with Middts if it is a causal property.
         """
         old = DigitalTwinProperty.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
@@ -238,7 +238,7 @@ class DigitalTwinProperty(models.Model):
 
     def update_value(self, new_value):
         """
-        Atualiza o valor da propriedade no Middts.
+        Update the property value in Middts.
         """
         url = f"{MIDDTS_API_URL}/orchestrator/systems/{self.instance.model.system.middts_id}/instances/{self.instance.middts_id}/properties/{self.middts_id}/"
         response = requests.put(url, json={"value": new_value})
@@ -247,7 +247,7 @@ class DigitalTwinProperty(models.Model):
             self.save(update_fields=["value"])
             return response.json()
         else:
-            return {"error": "Falha ao atualizar a propriedade no Middts"}
+            return {"error": "Failed to update the property in Middts"}
 
 
 class DigitalTwinInstanceRelationship(models.Model):
@@ -261,7 +261,7 @@ class DigitalTwinInstanceRelationship(models.Model):
         on_delete=models.CASCADE,
         related_name="target_relationships"
     )
-    relationship = models.CharField(max_length=255)  # Nome do relacionamento, ex: "conectado a"
+    relationship = models.CharField(max_length=255)  # Relationship name, e.g., "connected to"
 
     class Meta:
         unique_together = ("source_instance", "target_instance", "relationship")
@@ -273,8 +273,8 @@ class DigitalTwinInstanceRelationship(models.Model):
 class Device(models.Model):
     identifier = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
-    status = models.CharField(max_length=50, choices=[("active", "Ativo"), ("inactive", "Inativo")])
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Adicionando o campo middts_id
+    status = models.CharField(max_length=50, choices=[("active", "Active"), ("inactive", "Inactive")])
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Adding the middts_id field
     device_type = models.ForeignKey("DeviceType", null=True, on_delete=models.CASCADE, related_name="devices")
 
     def __str__(self):
@@ -283,7 +283,7 @@ class Device(models.Model):
 
 class DeviceType(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     def __str__(self):
         return self.name
@@ -293,7 +293,7 @@ class DeviceProperty(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="properties")
     name = models.CharField(max_length=255)
     data_type = models.CharField(max_length=255)
-    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # ID do Middts
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     class Meta:
         unique_together = ("device", "name")

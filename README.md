@@ -1,38 +1,37 @@
 # Middts Client
 
-Middts Client é uma ferramenta para visualização e gerenciamento de Gêmeos Digitais. A aplicação permite visualizar instâncias de Gêmeos Digitais, suas propriedades e relações, além de editar propriedades causais diretamente na interface.
+Middts Client is a tool for visualization and management of Digital Twins. The application allows you to view Digital Twin instances, their properties, and relationships, as well as edit causal properties directly in the interface.
 
-## Instalação
+## Installation
 
-### Pré-requisitos
+### Prerequisites
 
 - Python 3.8+
 - Django 3.2+
-- Node.js (para gerenciamento de dependências front-end, se necessário)
 
-### Passos para Instalação
+### Installation Steps
 
-1. Clone o repositório:
+1. Clone the repository:
 
     ```sh
-    git clone https://github.com/seu-usuario/middts-client.git
+    git clone https://github.com/your-username/middts-client.git
     cd middts-client
     ```
 
-2. Crie e ative um ambiente virtual:
+2. Create and activate a virtual environment:
 
     ```sh
     python -m venv venv
-    source venv/bin/activate  # No Windows use `venv\Scripts\activate`
+    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
     ```
 
-3. Instale as dependências do projeto:
+3. Install project dependencies:
 
     ```sh
     pip install -r requirements.txt
     ```
 
-4. Configure o banco de dados no arquivo `settings.py`:
+4. Configure the database in the `settings.py` file:
 
     ```python
     DATABASES = {
@@ -43,27 +42,27 @@ Middts Client é uma ferramenta para visualização e gerenciamento de Gêmeos D
     }
     ```
 
-5. Aplique as migrações do banco de dados:
+5. Apply database migrations:
 
     ```sh
     python manage.py migrate
     ```
 
-6. Inicie o servidor de desenvolvimento:
+6. Start the development server:
 
     ```sh
     python manage.py runserver
     ```
 
-## Configurações Extras
+## Additional Configurations
 
-Para o funcionamento correto do Middts Client, algumas configurações adicionais são necessárias no arquivo [settings_base.py](http://_vscodecontentref_/1):
+For the correct functioning of Middts Client, some additional configurations are required in the `settings_base.py` file:
 
-- [SITE_URL](http://_vscodecontentref_/2): Define a URL base do site onde o cliente está rodando.
-- [MIDDTS_API_URL](http://_vscodecontentref_/3): Define a URL base da API do Middts.
-- [CORS_ALLOWED_ORIGINS](http://_vscodecontentref_/4): Define as origens permitidas para requisições CORS.
+- `SITE_URL`: Defines the base URL of the site where the client is running.
+- `MIDDTS_API_URL`: Defines the base URL of the Middts API.
+- `CORS_ALLOWED_ORIGINS`: Defines the allowed origins for CORS requests.
 
-Exemplo de configuração:
+Example configuration:
 
 ```python
 SITE_URL = "http://localhost:8004"
@@ -72,32 +71,37 @@ MIDDTS_API_URL = "http://localhost:8000/api"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    # "http://seu-servidor-middts.com"
+    # "http://your-middts-server.com"
 ]
 ```
-### Explicação das Configurações
 
-* SITE_URL: Esta configuração define a URL base do cliente Middts. No exemplo, o cliente está rodando em http://localhost:8004.
-* MIDDTS_API_URL: Esta configuração define a URL base da API do Middts. No exemplo, a API está disponível em http://localhost:8000/api.
-* CORS_ALLOWED_ORIGINS: Esta configuração permite que o cliente Middts faça requisições para a API do Middts. No exemplo, as origens permitidas são http://localhost:8000 e http://127.0.0.1:8000.
+### Configuration Explanation
 
+* `SITE_URL`: This setting defines the base URL of the Middts client. In the example, the client is running at `http://localhost:8004`.
+* `MIDDTS_API_URL`: This setting defines the base URL of the Middts API. In the example, the API is available at `http://localhost:8000/api`.
+* `CORS_ALLOWED_ORIGINS`: This setting allows the Middts client to make requests to the Middts API. In the example, the allowed origins are `http://localhost:8000` and `http://127.0.0.1:8000`.
 
-## Uso
-### Passo a Passo
-1. Acessar a aplicação: Abra o navegador e acesse http://127.0.0.1:8000.
+## Usage
 
-2. Filtrar por Sistema: Utilize o filtro no topo da página para selecionar o sistema desejado. Isso atualizará a visualização para mostrar apenas as instâncias do sistema selecionado.
+### Step-by-Step
 
-3. Visualizar Gêmeos Digitais: No gráfico, clique em qualquer nó para visualizar as informações detalhadas do Gêmeo Digital no painel lateral.
+1. Access the application: Open your browser and go to `http://127.0.0.1:8000`.
 
-4. Editar Propriedades: No painel lateral, edite as propriedades causais conforme necessário. Após realizar as alterações, clique no botão "Salvar Alterações" para atualizar as propriedades no banco de dados.
+2. Filter by System: Use the filter at the top of the page to select the desired system. This will update the view to show only the instances of the selected system.
 
-5. Atualizar Visualização: As alterações feitas nas propriedades serão refletidas imediatamente na interface. Para garantir que os dados estão atualizados, clique novamente no nó do Gêmeo Digital.
+3. View Digital Twins: In the graph, click on any node to view detailed information about the Digital Twin in the side panel.
 
-### Funcionalidades Adicionais
-* Arrastar e Soltar: Você pode arrastar os nós no gráfico para reorganizar a visualização conforme necessário.
-* Zoom e Pan: Utilize o scroll do mouse para aplicar zoom e arraste o gráfico para navegar pela visualização.
+4. Edit Properties: In the side panel, edit the causal properties as needed. After making changes, click the "Save Changes" button to update the properties in the database.
 
-## Contribuição
+5. Update View: The changes made to the properties will be immediately reflected in the interface. To ensure the data is up-to-date, click on the Digital Twin node again.
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests no repositório.
+### Additional Features
+
+* Drag and Drop: You can drag nodes in the graph to rearrange the view as needed.
+* Zoom and Pan: Use the mouse scroll to zoom in and out, and drag the graph to navigate the view.
+* Left Sidebar: Provides options to switch between different views (Graph, Text, JSON) of the query results.
+* Right Sidebar: Displays detailed information about the selected Digital Twin, including non-editable and editable properties.
+
+## Contribution
+
+Contributions are welcome! Feel free to open issues and pull requests in the repository.

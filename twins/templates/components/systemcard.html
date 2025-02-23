@@ -2,9 +2,9 @@
     <div class="card border shadow-sm mb-4">
         <div class="card-body">
             <h5 class="card-title">{{ system.name }}</h5>
-            <p class="card-text">{{ system.description|default:"Sem descrição" }}</p>
-            <a href="/dtdlmodels/?system_id={{ system.id }}" class="btn btn-primary w-100">Visualizar Modelos</a>
-            <a href="/instances/?system_id={{ system.id }}" class="btn btn-primary w-100">Visualizar Gêmeos Digitais</a>
+            <p class="card-text">{{ system.description|default:"No description" }}</p>
+            <a href="/dtdlmodels/?system_id={{ system.id }}" class="btn btn-primary w-100">View Models</a>
+            <a href="/instances/?system_id={{ system.id }}" class="btn btn-primary w-100">View Digital Twins</a>
             <a href="/dtexplorer/?system_id={{ system.id }}" class="btn btn-primary w-100">DT Explorer</a>
         </div>
     </div>
