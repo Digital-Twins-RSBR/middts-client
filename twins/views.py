@@ -257,7 +257,7 @@ def manage_bindings(request):
 
     if request.method == "POST":
         dt_property_id = request.POST.get("dt_property_id")
-        property_id = request.POST.get("device_id")
+        property_id = request.POST.get("device_property_id")
 
         dt_property = get_object_or_404(DigitalTwinProperty, id=dt_property_id)
         property = get_object_or_404(DeviceProperty, id=property_id)

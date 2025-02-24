@@ -45,11 +45,11 @@ class DTDLModel(models.Model):
     system = models.ForeignKey(SystemContext, on_delete=models.CASCADE, related_name="dtdl_models")
     name = models.CharField(max_length=255)
     specification = models.JSONField()
-    dtmi = models.CharField(max_length=255, unique=True, null=True, blank=True)  # Unique model identifier
-    middts_id = models.IntegerField(null=True, blank=True)  # Middts ID
+    dtmi = models.CharField(max_length=255, null=True, blank=True)  # Unique model identifier
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     class Meta:
-        unique_together = ("system", "middts_id")
+        unique_together = ("system", "middts_id", 'dtmi')
 
     def save(self, *args, **kwargs):
         """

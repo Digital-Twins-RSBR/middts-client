@@ -73,6 +73,7 @@ def import_dtdlmodels_from_middts(modeladmin, request, queryset):
 @admin.register(DTDLModel)
 class DTDLModelAdmin(admin.ModelAdmin):
     list_display = ("name", "system", "middts_id", "dtmi")
+    list_filter = ("system",)
     actions = [import_dtdlmodels_from_middts]
 
     def get_urls(self):
@@ -139,6 +140,7 @@ class DigitalTwinInstanceRelationshipInline(admin.TabularInline):
 @admin.register(DigitalTwinInstance)
 class DigitalTwinInstanceAdmin(admin.ModelAdmin):
     list_display = ("name", "model", "middts_id")
+    list_filter = ("model__system", "model")
     actions = [import_instances_from_middts]
     inlines = [DigitalTwinPropertyInline, DigitalTwinInstanceRelationshipInline]
 
@@ -173,6 +175,7 @@ class DigitalTwinPropertyAdmin(admin.ModelAdmin):
 @admin.register(DigitalTwinInstanceRelationship)
 class DigitalTwinInstanceRelationshipAdmin(admin.ModelAdmin):
     list_display = ("source_instance", "relationship", "target_instance")
+    list_filter = ("source_instance__model__system",)
 
 
 @admin.register(ModelElement)
