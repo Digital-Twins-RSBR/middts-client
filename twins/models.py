@@ -169,6 +169,7 @@ class ModelRelationship(models.Model):
     name = models.CharField(max_length=255)
     target_dtmi = models.CharField(max_length=255)  # Stores the target model's DTMI before linking it correctly
     element = models.ForeignKey("ModelElement", on_delete=models.CASCADE, null=True, blank=True, related_name="relationships")
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     class Meta:
         unique_together = ("source_model", "target_model", "name")  # Ensure uniqueness of the relationship
@@ -262,12 +263,49 @@ class DigitalTwinInstanceRelationship(models.Model):
         related_name="target_relationships"
     )
     relationship = models.CharField(max_length=255)  # Relationship name, e.g., "connected to"
+    middts_id = models.IntegerField(null=True, blank=True, unique=True)  # Middts ID
 
     class Meta:
         unique_together = ("source_instance", "target_instance", "relationship")
 
     def __str__(self):
         return f"{self.source_instance} -> ({self.relationship}) -> {self.target_instance}"
+
+    def save(self, *args, **kwargs):
+        """
+        Save the relationship and synchronize with Middts.
+        """
+        super().save(*args, **kwargs)  # Save locally first
+
+        # Payload to send to Middts
+        payload = {
+            "source_instance": self.source_instance.middts_id,
+            "target_instance": self.target_instance.middts_id,
+            "relationship": self.relationship
+        }
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        if self.middts_id:
+            # Update in Middts
+            response = requests.put(
+                f"{MIDDTS_API_URL}/orchestrator/systems/{self.source_instance.model.system.middts_id}/instances/relationships/{self.middts_id}/",
+                json=payload,
+                headers=headers
+            )
+        else:
+            # Create in Middts
+            response = requests.post(
+                f"{MIDDTS_API_URL}/orchestrator/systems/{self.source_instance.model.system.middts_id}/instances/relationships/",
+                json=payload,
+                headers=headers
+            )
+            if response.status_code == 200:
+                data = response.json()
+                self.middts_id = data.get("id")
+                super().save(update_fields=["middts_id"])  # Update the local middts_id after creation
 
 
 class Device(models.Model):

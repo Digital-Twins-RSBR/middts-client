@@ -70,11 +70,71 @@ def import_dtdlmodels_from_middts(modeladmin, request, queryset):
             modeladmin.message_user(request, f"Error importing models from system {dtdlmodel.system.name}", level="error")
 
 
+@admin.action(description="Create and Import Digital Twin Instance from Middts")
+def create_and_import_instance_from_middts(modeladmin, request, queryset):
+    for dtdlmodel in queryset:
+        # Create instance in Middts
+        payload = {"dtdl_model_id": dtdlmodel.middts_id, "name": f"Instance of {dtdlmodel.name}"}
+        response = requests.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/", json=payload)
+        if response.status_code == 200:
+            instance = response.json()
+            instance_id = instance["id"]
+            
+            # Import the created instance
+            response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/{instance_id}")
+            if response.status_code == 200:
+                model_middts_id = instance.get('model')
+                if model_middts_id:
+                    dtdlmodel = DTDLModel.objects.filter(middts_id=model_middts_id).first()
+                    instance_name = f"{dtdlmodel.name} - Instance {instance['id']}"
+                    # Create or update the instance
+                    dt_instance, created = DigitalTwinInstance.objects.update_or_create(
+                        middts_id=instance["id"],
+                        defaults={
+                            "model": dtdlmodel,
+                            "name": instance_name,
+                            "properties_json": instance.get("digitaltwininstanceproperty_set", {}),
+                        },
+                    )
+
+                    # Create the instance relationships with other digital twins
+                    for relationship in instance.get("sourcerelationships", []):
+                        target_instance = DigitalTwinInstance.objects.filter(middts_id=relationship["target_instance"]).first()
+
+                        if target_instance:
+                            DigitalTwinInstanceRelationship.objects.update_or_create(
+                                source_instance=dt_instance,
+                                target_instance=target_instance,
+                                defaults={"relationship": relationship["relationship_name"]},
+                            )
+
+                    # Create the instance properties
+                    for prop in instance.get("digitaltwininstanceproperty_set", []):
+                        DigitalTwinProperty.objects.update_or_create(
+                            instance=dt_instance,
+                            middts_id=prop["id"],
+                            name=prop["name"],
+                            defaults={
+                                "type": prop["type"],
+                                "value": prop["value"],
+                                "causal": prop["causal"]
+                            },
+                        )
+                    if created:
+                        modeladmin.message_user(request, f"Imported: {instance_name}")
+                    else:
+                        modeladmin.message_user(request, f"Updated: {instance_name}")
+            else:
+                modeladmin.message_user(request, f"Error importing instance from model {dtdlmodel.name}", level="error")
+        else:
+            modeladmin.message_user(request, f"Error creating instance for model {dtdlmodel.name}", level="error")
+
+
 @admin.register(DTDLModel)
 class DTDLModelAdmin(admin.ModelAdmin):
     list_display = ("name", "system", "middts_id", "dtmi")
     list_filter = ("system",)
-    actions = [import_dtdlmodels_from_middts]
+    actions = [import_dtdlmodels_from_middts, create_and_import_instance_from_middts]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -106,7 +166,7 @@ def import_instances_from_middts(modeladmin, request, queryset):
             for instance in instances:
                 obj, created = DigitalTwinInstance.objects.update_or_create(
                     middts_id=instance["id"],
-                    defaults={"model": instance.model, "name": instance["name"], "properties": instance.get("properties", {})},
+                    defaults={"model": instance.model, "name": instance["name"], "properties_json": instance.get("properties", {})},
                 )
                 if created:
                     modeladmin.message_user(request, f"Imported: {instance['name']}")
@@ -118,7 +178,7 @@ def import_instances_from_middts(modeladmin, request, queryset):
                 for relationship in relationships:
                     target_instance, _ = DigitalTwinInstance.objects.update_or_create(
                         middts_id=relationship["target_id"],
-                        defaults={"model": instance.model, "name": relationship["target_name"], "properties": relationship.get("target_properties", {})},
+                        defaults={"model": instance.model, "name": relationship["target_name"], "properties_json": relationship.get("target_properties", {})},
                     )
                     DigitalTwinInstanceRelationship.objects.update_or_create(
                         source_instance=obj,
@@ -172,10 +232,52 @@ class DigitalTwinPropertyAdmin(admin.ModelAdmin):
     search_fields = ("name", "instance__name")
 
 
+@admin.action(description="Import Digital Twin Instance Relationships from Middts")
+def import_relationships_from_middts(modeladmin, request, queryset):
+    for relationship in queryset:
+        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{relationship.source_instance.model.system.middts_id}/instances/relationships/")
+        if response.status_code == 200:
+            relationships = response.json()
+            for rel in relationships:
+                source_instance = DigitalTwinInstance.objects.get(middts_id=rel["source_instance"])
+                target_instance = DigitalTwinInstance.objects.get(middts_id=rel["target_instance"])
+                obj, created = DigitalTwinInstanceRelationship.objects.update_or_create(
+                    middts_id=rel["id"],
+                    defaults={"source_instance": source_instance, "target_instance": target_instance, "relationship": rel["relationship"]},
+                )
+                if created:
+                    modeladmin.message_user(request, f"Imported: {rel['relationship']}")
+                else:
+                    modeladmin.message_user(request, f"Updated: {rel['relationship']}")
+        else:
+            modeladmin.message_user(request, f"Error importing relationships from system {relationship.source_instance.model.system.name}", level="error")
+
+
 @admin.register(DigitalTwinInstanceRelationship)
 class DigitalTwinInstanceRelationshipAdmin(admin.ModelAdmin):
     list_display = ("source_instance", "relationship", "target_instance")
     list_filter = ("source_instance__model__system",)
+    actions = [import_relationships_from_middts]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-relationships/', self.admin_site.admin_view(self.import_relationships), name='import-relationships'),
+        ]
+        return custom_urls + urls
+
+    def import_relationships(self, request):
+        response = requests.post(f"{settings.SITE_URL}/api/relationships/import/")
+        if response.status_code == 200:
+            messages.success(request, "Relationships import completed successfully!")
+        else:
+            messages.error(request, "Error importing Relationships.")
+        return redirect("..")
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["import_relationships_url"] = "import-relationships/"
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 @admin.register(ModelElement)

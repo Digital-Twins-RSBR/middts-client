@@ -1,0 +1,6 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools %}
+    <a href="{{ import_relationships_url }}" class="button">Import Digital Twin Relationships from Middts</a>
+    {{ block.super }}
+{% endblock %}

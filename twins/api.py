@@ -135,6 +135,36 @@ def create_instance(request, system_id: int, dtdl_model_id: int, name: str):
     response = requests.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/", json=payload)
     return response.json()
 
+# Digital Twin Relationship imports
+@api.post("/relationships/import/")
+def import_relationships(request):
+    systems = SystemContext.objects.filter(middts_id__isnull=False)
+    for system in systems:
+        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system.middts_id}/relationships/")
+        if response.status_code == 200:
+            relationships = response.json()
+            for relationship in relationships:
+                # Name based on the model
+                relationship_name = relationship.get('relationship_name')
+                middts_id = relationship.get('id')
+                if middts_id:
+                    source_middts_id = relationship.get('source_instance')
+                    target_middts_id = relationship.get('target_instance')
+                    
+                    if source_middts_id and target_middts_id:
+                        source_instance = DigitalTwinInstance.objects.filter(middts_id=source_middts_id).first()
+                        target_instance = DigitalTwinInstance.objects.filter(middts_id=target_middts_id).first()
+                        if source_instance and target_instance: 
+                            DigitalTwinInstanceRelationship.objects.update_or_create(
+                                middts_id=middts_id,
+                                defaults={
+                                    "source_instance": source_instance,
+                                    "target_instance": target_instance,
+                                    "relationship": relationship_name,
+                                },
+                            )
+
+    return {"message": "Instances relationships completed successfully!"}
 
 # List instances
 @api.get("/systems/{system_id}/instances/")
