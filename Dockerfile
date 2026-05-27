@@ -12,5 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /tmp/requirements.txt
 
 COPY . .
+# Auto-create settings.py from settings_base if not present (e.g. in clean clones)
+RUN [ ! -f client/settings.py ] && printf 'from .settings_base import *\n' > client/settings.py || true
 
 EXPOSE 8002
