@@ -25,7 +25,7 @@
         <div class="mb-3">
             <label for="cypher-query" class="form-label"><strong>Cypher Query:</strong></label>
             <textarea name="cypher_query" id="cypher-query" class="form-control" rows="4">{{ request.POST.cypher_query }}</textarea>
-            <small class="form-text text-muted">Example query: <code>MATCH (n) RETURN n LIMIT 25</code> - This query returns the first 25 nodes from the database.</small>
+            <small class="form-text text-muted">Example query: <code>MATCH (dt_filter)-[r]->(n) RETURN dt_filter, r, n LIMIT 25</code> - This query returns the first 25 nodes that match the pattern.</small>
         </div>
         <button type="submit" class="btn btn-primary">Execute Query</button>
     </form>
@@ -34,6 +34,12 @@
     {% if error_message %}
     <div class="alert alert-danger" role="alert">
         {{ error_message }}
+    </div>
+    {% endif %}
+
+    {% if warning_message %}
+    <div class="alert alert-warning" role="alert">
+        {{ warning_message }}
     </div>
     {% endif %}
 

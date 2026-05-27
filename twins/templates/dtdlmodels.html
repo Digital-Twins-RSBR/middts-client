@@ -3,60 +3,150 @@
 {% block title %}DTDL Models{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center mb-4">Registered DTDL Models</h2>
+<section class="models-page container-fluid px-3 px-md-4 py-4 py-md-5">
+    <div class="models-header mb-4">
+        <div>
+            <p class="models-kicker mb-2">Model Registry</p>
+            <h2 class="mb-1">DTDL Models</h2>
+            <p class="mb-0">Browse hierarchy and dependencies by system.</p>
+        </div>
+        <div class="models-count">{{ hierarchy|length }} root nodes</div>
+    </div>
 
-    <!-- Dropdown Filter -->
-    <form method="GET" class="mb-4">
-        <label for="system-filter" class="form-label"><strong>Filter by System:</strong></label>
-        <select name="system_id" id="system-filter" class="form-select" onchange="this.form.submit()">
-            <option value="">All Systems</option>
-            {% for system in systems %}
-                <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
-                    {{ system.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </form>
+    <div class="models-toolbar mb-4">
+        <form method="GET" class="w-100">
+            <label for="system-filter" class="form-label mb-2"><strong>Filter by System</strong></label>
+            <select name="system_id" id="system-filter" class="form-select" onchange="this.form.submit()">
+                <option value="">All Systems</option>
+                {% for system in systems %}
+                    <option value="{{ system.id }}" {% if selected_system_id == system.id %}selected{% endif %}>
+                        {{ system.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
 
-    <!-- Hierarchical Tree -->
     <div class="tree-container">
         <ul class="tree">
             {% for node in hierarchy %}
                 {% include "components/dtdl_tree_node.html" with node=node %}
+            {% empty %}
+                <li class="empty-tree">No models found for this filter.</li>
             {% endfor %}
         </ul>
     </div>
-</div>
+</section>
 
 <style>
+    .models-page {
+        --paper: #f4f1ea;
+        --wine: #6e2c44;
+        --forest: #2f5d50;
+        --line: #d5c8b8;
+        min-height: calc(100vh - 56px);
+        background:
+            linear-gradient(180deg, rgba(110, 44, 68, 0.08), rgba(47, 93, 80, 0.08)),
+            var(--paper);
+    }
+
+    .models-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .models-kicker {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--wine);
+        font-weight: 700;
+    }
+
+    .models-header h2 {
+        color: #2e2430;
+        font-size: clamp(1.5rem, 2.4vw, 2.2rem);
+    }
+
+    .models-count {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: #4b3b2f;
+        border-radius: 999px;
+        padding: 0.38rem 0.85rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .models-toolbar {
+        max-width: 380px;
+        padding: 1rem;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 24px rgba(48, 34, 24, 0.08);
+    }
+
+    .tree {
+        list-style-type: none;
+        margin: 0;
+        padding: 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--line);
+        box-shadow: 0 12px 28px rgba(48, 34, 24, 0.1);
+    }
+
     .tree ul {
         list-style-type: none;
-        padding-left: 20px;
+        margin: 0.5rem 0 0.3rem 1rem;
+        padding-left: 1.1rem;
+        border-left: 1px dashed #c7b7a4;
     }
 
     .tree li {
-        margin: 5px 0;
-        position: relative;
+        margin: 0.55rem 0;
     }
 
     .tree-node {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        background-color: #f8f9fa;
+        padding: 0.72rem 0.82rem;
+        border: 1px solid #d9ccbc;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #fff, #f7f2e9);
         display: flex;
         align-items: center;
         cursor: pointer;
+        gap: 0.4rem;
     }
 
     .toggle-btn {
-        background: none;
+        background: #2f5d50;
         border: none;
-        font-size: 16px;
+        font-size: 13px;
+        font-weight: 700;
         cursor: pointer;
-        margin-right: 10px;
-        color: black;
+        color: #fff;
+        border-radius: 8px;
+        width: 34px;
+        height: 28px;
+    }
+
+    .tree-node-name {
+        color: #2f2a25;
+        font-weight: 600;
+    }
+
+    .tree-node-id {
+        color: #6f6558;
+        font-size: 0.82rem;
+    }
+
+    .empty-tree {
+        padding: 0.8rem;
+        color: #5f5448;
     }
 
     .hidden {

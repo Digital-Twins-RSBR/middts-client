@@ -5,7 +5,8 @@
                 [-]
             </button>
         {% endif %}
-        <span class="flex-grow-1">{{ node.model.name }}</span>
+        <span class="flex-grow-1 tree-node-name">{{ node.model.name }}</span>
+        <span class="tree-node-id">#{{ node.model.id }}</span>
     </div>
     
     {% if node.children %}

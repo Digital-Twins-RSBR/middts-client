@@ -4,12 +4,14 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import path
 import requests
+from twins import middts_api
 from .models import DigitalTwinInstanceRelationship, DigitalTwinProperty, SystemContext, DTDLModel, DigitalTwinInstance, Device, DigitalTwinDevicePropertyBinding, ModelElement, ModelRelationship, DeviceType, DeviceProperty
+from .utils import upsert_instance_relationship
 
 
 @admin.action(description="Import Systems from Middts")
 def import_systems_from_middts(modeladmin, request, queryset):
-    response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/")
+    response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/")
     if response.status_code == 200:
         systems = response.json()
         for system in systems:
@@ -54,7 +56,7 @@ class SystemContextAdmin(admin.ModelAdmin):
 @admin.action(description="Import DTDL Models from Middts")
 def import_dtdlmodels_from_middts(modeladmin, request, queryset):
     for dtdlmodel in queryset:
-        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/dtdlmodels/")
+        response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/dtdlmodels/")
         if response.status_code == 200:
             models = response.json()
             for model in models:
@@ -75,23 +77,45 @@ def create_and_import_instance_from_middts(modeladmin, request, queryset):
     for dtdlmodel in queryset:
         # Create instance in Middts
         payload = {"dtdl_model_id": dtdlmodel.middts_id, "name": f"Instance of {dtdlmodel.name}"}
-        response = requests.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/", json=payload)
+        response = middts_api.post(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/", json=payload)
         if response.status_code == 200:
             instance = response.json()
             instance_id = instance["id"]
-            
+
             # Import the created instance
-            response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/{instance_id}")
+            response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/instances/{instance_id}")
             if response.status_code == 200:
+                instance = response.json()
                 model_middts_id = instance.get('model')
-                if model_middts_id:
-                    dtdlmodel = DTDLModel.objects.filter(middts_id=model_middts_id).first()
-                    instance_name = f"{dtdlmodel.name} - Instance {instance['id']}"
-                    # Create or update the instance
+
+                # Start with the original model from the queryset
+                model_for_defaults = dtdlmodel
+
+                # If Middts reports a different model id, try to resolve it locally or fetch
+                if model_middts_id and model_middts_id != (dtdlmodel.middts_id if dtdlmodel else None):
+                    found = DTDLModel.objects.filter(middts_id=model_middts_id).first()
+                    if found:
+                        model_for_defaults = found
+                    else:
+                        # Try to fetch the model from Middts and create locally
+                        resp = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{dtdlmodel.system.middts_id}/dtdlmodels/{model_middts_id}")
+                        if resp.status_code == 200:
+                            model_data = resp.json()
+                            model_for_defaults = DTDLModel.objects.create(
+                                system=dtdlmodel.system,
+                                name=model_data.get("name", f"Model {model_middts_id}"),
+                                specification=model_data.get("specification", {}),
+                                middts_id=model_middts_id,
+                            )
+
+                if not model_for_defaults:
+                    modeladmin.message_user(request, f"Skipped importing instance {instance.get('id')} because model is missing", level=messages.ERROR)
+                else:
+                    instance_name = f"{model_for_defaults.name} - Instance {instance['id']}"
                     dt_instance, created = DigitalTwinInstance.objects.update_or_create(
                         middts_id=instance["id"],
                         defaults={
-                            "model": dtdlmodel,
+                            "model": model_for_defaults,
                             "name": instance_name,
                             "properties_json": instance.get("digitaltwininstanceproperty_set", {}),
                         },
@@ -102,10 +126,10 @@ def create_and_import_instance_from_middts(modeladmin, request, queryset):
                         target_instance = DigitalTwinInstance.objects.filter(middts_id=relationship["target_instance"]).first()
 
                         if target_instance:
-                            DigitalTwinInstanceRelationship.objects.update_or_create(
+                            upsert_instance_relationship(
                                 source_instance=dt_instance,
                                 target_instance=target_instance,
-                                defaults={"relationship": relationship["relationship_name"]},
+                                relationship_name=relationship.get("relationship_name"),
                             )
 
                     # Create the instance properties
@@ -160,7 +184,7 @@ class DTDLModelAdmin(admin.ModelAdmin):
 @admin.action(description="Import Digital Twin Instances from Middts")
 def import_instances_from_middts(modeladmin, request, queryset):
     for instance in queryset:
-        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{instance.model.system.middts_id}/instances/")
+        response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{instance.model.system.middts_id}/instances/")
         if response.status_code == 200:
             instances = response.json()
             for instance in instances:
@@ -180,17 +204,17 @@ def import_instances_from_middts(modeladmin, request, queryset):
                         middts_id=relationship["target_id"],
                         defaults={"model": instance.model, "name": relationship["target_name"], "properties_json": relationship.get("target_properties", {})},
                     )
-                    DigitalTwinInstanceRelationship.objects.update_or_create(
+                    upsert_instance_relationship(
                         source_instance=obj,
-                        relationship=relationship["name"],
-                        defaults={"target_instance": target_instance},
+                        target_instance=target_instance,
+                        relationship_name=relationship.get("name"),
                     )
         else:
             modeladmin.message_user(request, f"Error importing instances from model {instance.model.name}", level="error")
 
 class DigitalTwinPropertyInline(admin.TabularInline):
-            model = DigitalTwinProperty
-            extra = 1
+    model = DigitalTwinProperty
+    extra = 1
 
 class DigitalTwinInstanceRelationshipInline(admin.TabularInline):
     model = DigitalTwinInstanceRelationship
@@ -235,17 +259,24 @@ class DigitalTwinPropertyAdmin(admin.ModelAdmin):
 @admin.action(description="Import Digital Twin Instance Relationships from Middts")
 def import_relationships_from_middts(modeladmin, request, queryset):
     for relationship in queryset:
-        response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{relationship.source_instance.model.system.middts_id}/instances/relationships/")
+        response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{relationship.source_instance.model.system.middts_id}/instances/relationships/")
         if response.status_code == 200:
             relationships = response.json()
             for rel in relationships:
                 source_instance = DigitalTwinInstance.objects.get(middts_id=rel["source_instance"])
                 target_instance = DigitalTwinInstance.objects.get(middts_id=rel["target_instance"])
-                obj, created = DigitalTwinInstanceRelationship.objects.update_or_create(
-                    middts_id=rel["id"],
-                    defaults={"source_instance": source_instance, "target_instance": target_instance, "relationship": rel["relationship"]},
+                existed = DigitalTwinInstanceRelationship.objects.filter(
+                    source_instance=source_instance,
+                    target_instance=target_instance,
+                    relationship=rel.get("relationship"),
+                ).exists()
+                upsert_instance_relationship(
+                    source_instance=source_instance,
+                    target_instance=target_instance,
+                    relationship_name=rel.get("relationship"),
+                    middts_id=rel.get("id"),
                 )
-                if created:
+                if not existed:
                     modeladmin.message_user(request, f"Imported: {rel['relationship']}")
                 else:
                     modeladmin.message_user(request, f"Updated: {rel['relationship']}")
@@ -295,7 +326,7 @@ class ModelRelationshipAdmin(admin.ModelAdmin):
 
 @admin.action(description="Import Devices from Middts")
 def import_devices_from_middts(modeladmin, request, queryset):
-    response = requests.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
+    response = middts_api.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
     if response.status_code == 200:
         devices = response.json()
         for device in devices:
@@ -337,7 +368,7 @@ class DeviceAdmin(admin.ModelAdmin):
 
 
     def import_devices(self, request):
-        response = requests.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
+        response = middts_api.get(f"{settings.MIDDTS_API_URL}/facade/devices/")
         if response.status_code == 200:
             devices = response.json()
             for device in devices:
@@ -437,19 +468,42 @@ class DigitalTwinDevicePropertyBindingAdmin(admin.ModelAdmin):
         return custom_urls + urls
     
     def import_bindings(self, request):
+        imported = 0
+        skipped = 0
         for system_id in SystemContext.objects.values_list("middts_id", flat=True):
-            response = requests.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/properties/connected/")
+            response = middts_api.get(f"{settings.MIDDTS_API_URL}/orchestrator/systems/{system_id}/instances/properties/connected/")
             if response.status_code == 200:
                 bindings = response.json()
                 for binding in bindings:
-                    dt_instance = DigitalTwinInstance.objects.get(middts_id=binding["dtinstance"])
-                    dt_property = DigitalTwinProperty.objects.get(middts_id=binding["property"], instance=dt_instance)
-                    device_property = DeviceProperty.objects.get(middts_id=binding["device_property"])
+                    dt_instance = DigitalTwinInstance.objects.filter(middts_id=binding.get("dtinstance")).first()
+                    if not dt_instance:
+                        skipped += 1
+                        continue
+
+                    dt_property = DigitalTwinProperty.objects.filter(middts_id=binding.get("property"), instance=dt_instance).first()
+                    if not dt_property and binding.get("property_name"):
+                        dt_property = DigitalTwinProperty.objects.filter(
+                            instance=dt_instance,
+                            name=binding.get("property_name"),
+                        ).first()
+                    if not dt_property:
+                        skipped += 1
+                        continue
+
+                    device_property = DeviceProperty.objects.filter(middts_id=binding.get("device_property")).first()
+                    if not device_property:
+                        skipped += 1
+                        continue
+
                     DigitalTwinDevicePropertyBinding.objects.update_or_create(
                         dt_property=dt_property,
                         device_property=device_property,
                     )
-                messages.success(request, "Bindings imported successfully.")
+                    imported += 1
+                if imported:
+                    messages.success(request, f"Bindings imported successfully: {imported}.")
+                if skipped:
+                    messages.warning(request, f"Bindings skipped due to missing references: {skipped}.")
             else:
                 messages.error(request, "Error importing Bindings.")
         return redirect("..")

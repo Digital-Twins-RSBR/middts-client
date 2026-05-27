@@ -173,6 +173,7 @@
 
 <script>
     let selectedInstanceId = null;
+    let selectedInstanceData = null;
     let editableProperties = [];
     let zoomLevel = 1;
     let viewport;
@@ -286,6 +287,7 @@
 
         function showPanel(data) {
             selectedInstanceId = data.id;
+            selectedInstanceData = data;
             document.getElementById("panel-title").innerText = data.name;
             document.getElementById("panel-content").innerHTML = `<strong>Model:</strong> ${data.model}`;
 
@@ -338,7 +340,33 @@
             }
             return response.json();
         })
-        .then(data => alert("Properties updated successfully!"))
+        .then(data => {
+            const updated = data.updated_properties || [];
+
+            editableProperties = editableProperties.map(prop => {
+                const changed = updated.find(item => item.id === prop.id);
+                if (changed) {
+                    return { ...prop, value: changed.value };
+                }
+                return {
+                    ...prop,
+                    value: document.getElementById(`prop-${prop.id}`)?.value ?? prop.value,
+                };
+            });
+
+            if (selectedInstanceData && Array.isArray(selectedInstanceData.properties)) {
+                selectedInstanceData.properties = selectedInstanceData.properties.map(prop => {
+                    const changed = updated.find(item => item.id === prop.id);
+                    if (changed) {
+                        return { ...prop, value: changed.value };
+                    }
+                    const fromInput = editableProperties.find(item => item.id === prop.id);
+                    return fromInput ? { ...prop, value: fromInput.value } : prop;
+                });
+            }
+
+            alert("Properties updated successfully!");
+        })
         .catch(error => alert(error.message));
     }
 

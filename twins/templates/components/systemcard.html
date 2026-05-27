@@ -1,11 +1,16 @@
-<div class="col-md-4">
-    <div class="card border shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title">{{ system.name }}</h5>
-            <p class="card-text">{{ system.description|default:"No description" }}</p>
-            <a href="/dtdlmodels/?system_id={{ system.id }}" class="btn btn-primary w-100">View Models</a>
-            <a href="/instances/?system_id={{ system.id }}" class="btn btn-primary w-100">View Digital Twins</a>
-            <a href="/dtexplorer/?system_id={{ system.id }}" class="btn btn-primary w-100">DT Explorer</a>
+<div class="col-12 col-md-6 col-xl-4">
+    <article class="system-card h-100">
+        <div class="system-card-header">
+            <span class="system-chip">System {{ system.id }}</span>
+            <h3>{{ system.name }}</h3>
         </div>
-    </div>
+
+        <p class="system-description">{{ system.description|default:"No description" }}</p>
+
+        <div class="system-actions">
+            <a href="/dtdlmodels/?system_id={{ system.id }}" class="btn btn-system btn-models">View Models</a>
+            <a href="/instances/?system_id={{ system.id }}" class="btn btn-system btn-twins">View Digital Twins</a>
+            <a href="/dtexplorer/?system_id={{ system.id }}" class="btn btn-system btn-explorer">DT Explorer</a>
+        </div>
+    </article>
 </div>

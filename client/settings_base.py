@@ -24,11 +24,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8hf8dfxrm88u%ete8rus4+#_)5941b07x+)-6lzep6lv$q=hqc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = []
-SITE_URL = "http://localhost:8004"
-MIDDTS_API_URL = "http://localhost:8000/api"
+
+def _split_env_list(name, default):
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+ALLOWED_HOSTS = _split_env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
+host_ip = os.getenv('HOST_IP', '').strip()
+if host_ip and host_ip not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(host_ip)
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8002')
+MIDDTS_API_URL = os.getenv('MIDDTS_API_URL', 'http://localhost:8000/api')
+MIDDTS_API_USERNAME = os.getenv('MIDDTS_API_USERNAME', os.getenv('MIDDTS_USERNAME', 'middts'))
+MIDDTS_API_PASSWORD = os.getenv('MIDDTS_API_PASSWORD', os.getenv('MIDDTS_PASSWORD', 'middts123'))
+MIDDTS_API_TIMEOUT = int(os.getenv('MIDDTS_API_TIMEOUT', '10'))
+MIDDTS_API_USERNAME = os.getenv('MIDDTS_API_USERNAME', os.getenv('DJANGO_SUPERUSER_USERNAME', 'middts'))
+MIDDTS_API_PASSWORD = os.getenv('MIDDTS_API_PASSWORD', os.getenv('DJANGO_SUPERUSER_PASSWORD', 'middts123'))
+MIDDTS_API_TOKEN = os.getenv('MIDDTS_API_TOKEN', '')
+MIDDTS_API_TIMEOUT = float(os.getenv('MIDDTS_API_TIMEOUT', '15'))
 
 # Application definition
 
@@ -54,11 +70,10 @@ MIDDLEWARE = [
 ]
 
 # Ajuste a configuração de CORS para permitir comunicação com o Middts:
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    # "http://seu-servidor-middts.com"
-]
+CORS_ALLOWED_ORIGINS = _split_env_list(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:8000,http://127.0.0.1:8000,http://localhost:8002,http://127.0.0.1:8002',
+)
 
 ROOT_URLCONF = 'client.urls'
 
@@ -87,7 +102,7 @@ WSGI_APPLICATION = 'client.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.getenv('SQLITE_DB_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
@@ -134,6 +149,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
 
 SESSION_COOKIE_NAME = 'sessionid_middts_client'
 CSRF_COOKIE_NAME = 'csrftoken_midts_client'

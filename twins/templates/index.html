@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 
-<div class="content">
-    <h1>Welcome to Middts Client</h1>
-    <p>Choose an option from the menu to access the system functionalities.</p>
+{% block title %}Dashboard - Middts Client{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card p-4 shadow-sm">
+                <h1 class="mb-3">Bem-vindo ao Middts Client</h1>
+                <p class="lead">Use o painel para importar dados do Middts, navegar pelos sistemas, modelos e instâncias, e visualizar o DT Explorer.</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'import_all' %}" class="btn btn-primary">Importar tudo do Middts</a>
+                    <a href="{% url 'list_systems' %}" class="btn btn-outline-primary">Ver Systems</a>
+                    <a href="{% url 'list_dtdlmodels' %}" class="btn btn-outline-primary">Ver Modelos</a>
+                    <a href="{% url 'list_instances' %}" class="btn btn-outline-primary">Ver Instâncias</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card p-4 shadow-sm">
+                <h2>Importação rápida</h2>
+                <p>Clique em <strong>Importar tudo</strong> para coletar sistemas, modelos, instâncias, relacionamentos e bindings diretamente do Middts.</p>
+                <a href="{% url 'import_all' %}" class="btn btn-success">Importar tudo agora</a>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card p-4 shadow-sm">
+                <h2>Explorar dados</h2>
+                <p>Depois de importar, use o DT Explorer para navegar pelas instâncias e executar consultas visuais.</p>
+                <a href="{% url 'dtexplorer' %}" class="btn btn-secondary">Abrir DT Explorer</a>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}

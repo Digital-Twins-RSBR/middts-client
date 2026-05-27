@@ -2,15 +2,129 @@
 {% block title %}Registered Systems{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center mb-4">Registered Systems</h2>
+<section class="systems-page container-fluid px-3 px-md-4 py-4 py-md-5">
+    <div class="systems-hero mb-4 mb-md-5">
+        <p class="systems-kicker mb-2">Middts Client</p>
+        <h2 class="mb-2">Registered Systems</h2>
+        <p class="mb-0">Choose a system to explore models, twins and topology views.</p>
+    </div>
 
-    <div class="row">
+    <div class="row g-4">
         {% for system in systems %}
             {% include "components/systemcard.html" %}
         {% empty %}
-        <p class="text-center">No systems registered.</p>
+        <div class="col-12">
+            <div class="empty-state">
+                <h3>No systems registered</h3>
+                <p class="mb-0">Import systems from Middts and this dashboard will populate automatically.</p>
+            </div>
+        </div>
         {% endfor %}
     </div>
-</div>
+</section>
+
+<style>
+    .systems-page {
+        --sand: #f6efe4;
+        --copper: #b45f33;
+        --petrol: #0f4c5c;
+        --card: #ffffff;
+        --ink: #1c2933;
+        min-height: calc(100vh - 56px);
+        background:
+            radial-gradient(circle at 15% 20%, rgba(180, 95, 51, 0.14), transparent 35%),
+            radial-gradient(circle at 85% 10%, rgba(15, 76, 92, 0.18), transparent 35%),
+            var(--sand);
+    }
+
+    .systems-hero {
+        padding: 1.75rem;
+        border-radius: 18px;
+        color: #fff;
+        background: linear-gradient(115deg, var(--petrol), #1b7288 65%, #2ea0ad);
+        box-shadow: 0 12px 30px rgba(15, 76, 92, 0.25);
+    }
+
+    .systems-kicker {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.8;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .systems-hero h2 {
+        font-size: clamp(1.7rem, 3vw, 2.4rem);
+        font-weight: 700;
+    }
+
+    .system-card {
+        border-radius: 16px;
+        background: var(--card);
+        border: 1px solid rgba(15, 76, 92, 0.12);
+        box-shadow: 0 10px 24px rgba(28, 41, 51, 0.1);
+        padding: 1.2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .system-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px rgba(28, 41, 51, 0.16);
+    }
+
+    .system-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--petrol);
+        background: rgba(15, 76, 92, 0.1);
+    }
+
+    .system-card h3 {
+        margin: 0.5rem 0 0;
+        color: var(--ink);
+        font-size: 1.12rem;
+    }
+
+    .system-description {
+        margin: 0;
+        color: #5a6873;
+        flex-grow: 1;
+    }
+
+    .system-actions {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .btn-system {
+        border: 0;
+        font-weight: 600;
+        border-radius: 10px;
+        color: #fff;
+    }
+
+    .btn-models { background: #2f7d95; }
+    .btn-twins { background: #b45f33; }
+    .btn-explorer { background: #365a6d; }
+
+    .btn-system:hover {
+        color: #fff;
+        filter: brightness(0.95);
+    }
+
+    .empty-state {
+        padding: 2rem;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px dashed rgba(15, 76, 92, 0.35);
+        text-align: center;
+    }
+</style>
 {% endblock %}

@@ -1,6 +1,6 @@
-import requests
 from django.db import models
 from django.conf import settings
+from twins import middts_api
 
 MIDDTS_API_URL = settings.MIDDTS_API_URL  # Ensure the Middts URL is configured
 
@@ -28,10 +28,10 @@ class SystemContext(models.Model):
 
         if self.middts_id:
             # Update in Middts
-            response = requests.put(f"{MIDDTS_API_URL}/orchestrator/systems/{self.middts_id}/", json=payload, headers=headers)
+            response = middts_api.put(f"{MIDDTS_API_URL}/orchestrator/systems/{self.middts_id}/", json=payload, headers=headers)
         else:
             # Create in Middts
-            response = requests.post(f"{MIDDTS_API_URL}/orchestrator/systems/", json=payload, headers=headers)
+            response = middts_api.post(f"{MIDDTS_API_URL}/orchestrator/systems/", json=payload, headers=headers)
             if response.status_code == 200:
                 data = response.json()
                 self.middts_id = data.get("id")
@@ -74,14 +74,14 @@ class DTDLModel(models.Model):
 
         if self.middts_id:
             # Update in Middts
-            response = requests.put(
+            response = middts_api.put(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.system.middts_id}/dtdlmodels/{self.middts_id}/",
                 json=payload,
                 headers=headers
             )
         else:
             # Create in Middts
-            response = requests.post(
+            response = middts_api.post(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.system.middts_id}/dtdlmodels/",
                 json=payload,
                 headers=headers
@@ -242,7 +242,7 @@ class DigitalTwinProperty(models.Model):
         Update the property value in Middts.
         """
         url = f"{MIDDTS_API_URL}/orchestrator/systems/{self.instance.model.system.middts_id}/instances/{self.instance.middts_id}/properties/{self.middts_id}/"
-        response = requests.put(url, json={"value": new_value})
+        response = middts_api.put(url, json={"value": new_value})
         if response.status_code == 200:
             self.value = new_value
             self.save(update_fields=["value"])
@@ -290,14 +290,14 @@ class DigitalTwinInstanceRelationship(models.Model):
 
         if self.middts_id:
             # Update in Middts
-            response = requests.put(
+            response = middts_api.put(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.source_instance.model.system.middts_id}/instances/relationships/{self.middts_id}/",
                 json=payload,
                 headers=headers
             )
         else:
             # Create in Middts
-            response = requests.post(
+            response = middts_api.post(
                 f"{MIDDTS_API_URL}/orchestrator/systems/{self.source_instance.model.system.middts_id}/instances/relationships/",
                 json=payload,
                 headers=headers

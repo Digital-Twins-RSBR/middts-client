@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Condominio Client</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #1f2d40 0%, #1a497d 100%);
+            color: #ffffff;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            padding: 2rem;
+            color: #212529;
+        }
+        .brand-logo {
+            max-width: 120px;
+            margin-bottom: 1rem;
+        }
+        .login-card h1 {
+            font-size: 1.85rem;
+            margin-bottom: 0.5rem;
+        }
+        .login-card p {
+            color: #6c757d;
+        }
+        .form-control {
+            border-radius: 12px;
+        }
+        .btn-primary {
+            border-radius: 12px;
+        }
+        .login-footer {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <img src="{% static 'images/condominio-logo.svg' %}" alt="Condomínio" class="brand-logo">
+            <h1>Condomínio Client</h1>
+            <p>Entre com seu usuário para acessar o painel do Middts.</p>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <div class="mb-3">
+                <label for="username" class="form-label">Usuário</label>
+                <input type="text" id="username" name="username" class="form-control" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Senha</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+
+        <div class="login-footer mt-4 text-center">
+            Use as credenciais do Middts para acessar o cliente.
+        </div>
+    </div>
+</body>
+</html>
