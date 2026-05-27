@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+.vscode
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+.env.*
+*.log
+logs/
+node_modules/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
