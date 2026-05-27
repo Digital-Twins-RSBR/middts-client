@@ -72,7 +72,7 @@ MIDDLEWARE = [
 # Ajuste a configuração de CORS para permitir comunicação com o Middts:
 CORS_ALLOWED_ORIGINS = _split_env_list(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:8000,http://127.0.0.1:8000,http://localhost:8002,http://127.0.0.1:8002',
+    'http://localhost:8000,https://localhost:8000,http://127.0.0.1:8000,https://127.0.0.1:8000,http://localhost:8002,https://localhost:8002,http://127.0.0.1:8002,https://127.0.0.1:8002',
 )
 
 ROOT_URLCONF = 'client.urls'
