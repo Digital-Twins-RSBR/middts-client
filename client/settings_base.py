@@ -45,6 +45,22 @@ MIDDTS_API_USERNAME = os.getenv('MIDDTS_API_USERNAME', os.getenv('DJANGO_SUPERUS
 MIDDTS_API_PASSWORD = os.getenv('MIDDTS_API_PASSWORD', os.getenv('DJANGO_SUPERUSER_PASSWORD', 'middts123'))
 MIDDTS_API_TOKEN = os.getenv('MIDDTS_API_TOKEN', '')
 MIDDTS_API_TIMEOUT = float(os.getenv('MIDDTS_API_TIMEOUT', '15'))
+# Default CSRF trusted origins (add Codespaces domain when present)
+_default_csrf = [
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1',
+    'http://localhost:8002',
+    'https://localhost:8002',
+]
+
+codespace_name = os.getenv('CODESPACE_NAME', '').strip()
+codespaces_domain = os.getenv('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', '').strip()
+if codespace_name and codespaces_domain:
+    _default_csrf.append(f'https://{codespace_name}-8002.{codespaces_domain}')
+
+CSRF_TRUSTED_ORIGINS = [o for o in os.getenv('CSRF_TRUSTED_ORIGINS', ','.join(_default_csrf)).split(',') if o]
 
 # Application definition
 
