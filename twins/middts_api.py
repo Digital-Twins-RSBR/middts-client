@@ -7,8 +7,15 @@ from django.conf import settings
 _access_token = None
 
 
+def _api_base_url():
+    base = settings.MIDDTS_API_URL.rstrip('/')
+    if base.endswith('/api'):
+        return base
+    return f"{base}/api"
+
+
 def _token_url():
-    return f"{settings.MIDDTS_API_URL.rstrip('/')}/core/token/"
+    return f"{_api_base_url()}/core/token/"
 
 
 def _extract_access_token(payload):
