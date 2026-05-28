@@ -11,10 +11,21 @@ def _token_url():
     return f"{settings.MIDDTS_API_URL.rstrip('/')}/core/token/"
 
 
+def _extract_access_token(payload):
+    """Return the first supported token field from the auth payload."""
+    if not isinstance(payload, dict):
+        return None
+    for key in ('access', 'access_token', 'token'):
+        token_value = payload.get(key)
+        if isinstance(token_value, str) and token_value.strip():
+            return token_value.strip()
+    return None
+
+
 def _build_auth_headers():
     global _access_token
 
-    configured_token = getattr(settings, 'MIDDTS_API_TOKEN', '')
+    configured_token = getattr(settings, 'MIDDTS_API_TOKEN', '').strip()
     if configured_token:
         return {'Authorization': f'Bearer {configured_token}'}
 
@@ -30,7 +41,23 @@ def _build_auth_headers():
             timeout=settings.MIDDTS_API_TIMEOUT,
         )
         response.raise_for_status()
-        _access_token = response.json()['access']
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise requests.HTTPError(
+                f"Token endpoint returned non-JSON response at {_token_url()}",
+                response=response,
+            ) from exc
+
+        token = _extract_access_token(payload)
+        if not token:
+            detail = payload.get('detail') or payload.get('error') or str(payload)
+            raise requests.HTTPError(
+                f"Token endpoint response has no access token field: {detail}",
+                response=response,
+            )
+
+        _access_token = token
 
     return {'Authorization': f'Bearer {_access_token}'}
 
