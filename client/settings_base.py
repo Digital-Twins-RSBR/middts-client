@@ -56,9 +56,20 @@ _default_csrf = [
 ]
 
 codespace_name = os.getenv('CODESPACE_NAME', '').strip()
-codespaces_domain = os.getenv('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', '').strip()
+codespaces_domain = os.getenv('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', '').strip() or 'app.github.dev'
+client_port = os.getenv('CLIENT_PORT', '8002').strip()
 if codespace_name and codespaces_domain:
-    _default_csrf.append(f'https://{codespace_name}-8002.{codespaces_domain}')
+    _default_csrf.append(f'https://{codespace_name}-{client_port}.{codespaces_domain}')
+
+# If HOST_IP is configured, add it to CSRF trusted origins (with and without port).
+host_ip = os.getenv('HOST_IP', '').strip()
+if host_ip:
+    _default_csrf.extend([
+        f'http://{host_ip}',
+        f'https://{host_ip}',
+        f'http://{host_ip}:8002',
+        f'https://{host_ip}:8002',
+    ])
 
 CSRF_TRUSTED_ORIGINS = [o for o in os.getenv('CSRF_TRUSTED_ORIGINS', ','.join(_default_csrf)).split(',') if o]
 
